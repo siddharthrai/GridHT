@@ -13,7 +13,6 @@ import java.util.*;
 import gridsim.*;
 import eduni.simjava.*;
 
-
 public class GridMonitorDHTStub
 {
   /** Creates a new instance of GridMonitorDHTStub */
@@ -26,15 +25,21 @@ public class GridMonitorDHTStub
   int predecessor;
   int successor;
   int indexreq;
-
+  int update_req;
+  int query_fail;
+  int query_pass;
+  
   public GridMonitorDHTStub(GridMonitorResource resource_) 
   {
     successorlist = new ArrayList();
     fingertable   = new ArrayList();
 
-    index     = new ArrayList();
-    resource  = resource_;
-    indexreq  = 0;
+    index       = new ArrayList();
+    resource    = resource_;
+    indexreq    = 0;
+    update_req  = 0;
+    query_fail  = 0;
+    query_pass  = 0;
   }
 
   /*
@@ -90,10 +95,13 @@ public class GridMonitorDHTStub
 
       temp.getEnd(end);          
 
-      if (HashCode.compare(start,hashkey) <= 0 && HashCode.compare(hashkey, end) <= 0)
+      if (HashCode.compare(start, hashkey) <= 0 && HashCode.compare(hashkey, end) <= 0)
       {
-        //System.out.println(HashCode.getString(hashkey)+"contained in range"+HashCode.getString(start)+" "+HashCode.getString(end));
-        return count;
+        //System.out.println(HashCode.getString(hashkey) + " contained in range " + 
+        //    HashCode.getString(start) + " " + HashCode.getString(end) + 
+        //    " at node " + resource.nodeid);
+        //return count;
+        return 1;
       }
     }
 
@@ -145,14 +153,14 @@ public class GridMonitorDHTStub
 
     index.add(0, entry);
 
-    indexreq++;
+    update_req++;
 
     if(index.size() > 20)
     {
       //System.out.println("***Index exceeded size at "+this.resource);
     }
 
-    // System.out.println("Added to index "+nodeid);
+     //System.out.println("Added to index at " + resource.nodeid);
   }
 
   /*
@@ -212,8 +220,9 @@ public class GridMonitorDHTStub
       if(entry.isMatch(hashkey) == true)
       {
         destinationid.add(entry.getId());
-        //this.removeFromIndex(entry);
+        this.removeFromIndex(entry);
         //return destinationid;
+        //System.out.println("Found in index at " + resource.nodeid);
       }
     }
 
@@ -296,9 +305,6 @@ public class GridMonitorDHTStub
     return 0;
   }
 
-
-
-
   public ArrayList getIndex(RangeQuery query)
   {
     Iterator i = index.iterator();
@@ -309,6 +315,8 @@ public class GridMonitorDHTStub
     byte hashkey[] = new byte[20];
     int  state=0;
 
+    indexreq++;
+    
     while (i.hasNext())
     {
       entry = (IndexEntry)i.next();
@@ -322,7 +330,22 @@ public class GridMonitorDHTStub
         destinationid.add(entry);
       }
     }
-
+    
+    if (destinationid.size() != 0)
+    {
+      query_pass++;
+    }
+    else
+    {
+      query_fail++;
+    }
+    
+    System.out.println("Found in index at node " + resource.nodeid + " update =  " + 
+        update_req + " query = " + indexreq + " query pass = " + query_pass + 
+        " query fail = " + query_fail);
+    
+    //System.out.println("Found in index at node " + resource.nodeid + " entries =  " + destinationid.size() + " " + 
+    //    HashCode.getString(query.getStart()) + " " + HashCode.getString(query.getEnd()));
     //System.out.println("Index size "+destinationid.size()+" "+HashCode.getString(query.getStart())+" "+HashCode.getString(query.getEnd()));
     return destinationid;
   }
@@ -363,7 +386,7 @@ public class GridMonitorDHTStub
     {
       entry = (IndexEntry)i.next();
       entry.getHashkey(hashkey);
-      // System.out.println("######"+entry.getLoad()+"######"+entry.getId());
+      //System.out.println("######"+entry.getLoad()+"######"+entry.getId());
     }
 
     //System.out.println("Index size "+destinationid.size()+" "+HashCode.getString(query.getStart())+" "+HashCode.getString(query.getEnd())+" at node "+this.resource.nodeid);

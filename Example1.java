@@ -24,14 +24,29 @@ public class Example1 {
         int i;
         String line;
         String parts[];
-        GridMonitorResource res[]=new GridMonitorResource[500];
-        GridMonitorBroker broker[]=new GridMonitorBroker[500];
-        RandomAccessFile util,job;
-        long time,size;
-        try{
-         util=new RandomAccessFile("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_utilization.dat","rw");
+        
+        ArrayList  clocked_nodes;
+        
+        GridMonitorResource res[]  = new GridMonitorResource[500];
+        GridMonitorBroker broker[] = new GridMonitorBroker[500];
+        
+        clocked_nodes = new ArrayList();
+        
+        ClockPulseGenerator global_clock;
+        
+        RandomAccessFile util, job;
+        long time, size;
+        
+        int nodes;
+        
+        nodes = 100;
+        
+        try
+        {          
+          util=new RandomAccessFile("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_utilization.dat","rw");
          //job=new RandomAccessFile("./inputdata/das2_arrival_abs.dat","rw");
          //line=job.readLine();
+         
          
         // parts=line.split(" ");
          //System.out.println(parts[0]+":"+parts[1]);
@@ -90,6 +105,7 @@ public class Example1 {
         //System.out.println("*****"+map.containsKey(b));
         
        */ 
+        
         //System.out.println("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_schedule_trace.dat");
        /*try
        {
@@ -97,41 +113,48 @@ public class Example1 {
            for(i=0;i<10;i++)
                System.out.println(Double.parseDouble(in.readLine()));
        }catch(IOException e){}
-        */
-       
-         
+        */         
         
-        
-       
-        
-            GridMonitor gm=new GridMonitor();
+            GridMonitor gm = new GridMonitor();
+            
+            clocked_nodes.add(gm.getAdminId());
             
             //String str1=new String("ac3478d69a3c81fa62e6f5c3696165a4e5e6ac5");
             // String str2=new String("356a192b7913b04c54574d18c28d46e6395428ab");            
             //String str3=new String("bd307a3ec329e1a2cff8fb87480823da114f8f4");
             //System.out.println(new String("b").compareTo(new String("311")));
             
-            for(i=0;i<160;i++)
+            for (i = 0; i < nodes; i++)
             {
-                res[i]=new GridMonitorResource("res"+i,gm.getAdminId(),util);
-            }
-            for(i=0;i<1;i++)
-            {
-                broker[i]=new GridMonitorBroker("broker"+i,gm.getAdminId(),"das2_fs"+i+".dat");
+                res[i] = new GridMonitorResource("res" + i, gm.getAdminId(), util, clocked_nodes);
+                System.out.println("Finished instantiating res " + i);
+                //clocked_nodes.add(res[i].getNodeId());
             }
             
+            for (i = 0; i < 1; i++)
+            {
+                broker[i] = new GridMonitorBroker("broker" + i, gm.getAdminId(), "das2_fs" + i + ".dat", clocked_nodes);
+                //clocked_nodes.add(broker[i].getNodeId());
+            }
             
+            System.out.println("Total clocked nodes " + clocked_nodes.size());
+            
+            global_clock = new ClockPulseGenerator(0, 4, clocked_nodes);
+         
+            broker[0].setClockPulseGenerator(global_clock);
+            
+            for (i = 0; i < nodes; i++)
+            {
+              res[i].setClockPulseGenerator(global_clock);
+            }
             
             gm.startsimulation(); 
             
-            util.close();
-           
-        }catch(Exception e){
-            
+            util.close();           
         }
-    
-
-        
-    }
-    
+        catch(Exception e)
+        {   
+          
+        }          
+    }    
 }

@@ -22,7 +22,8 @@ public static final int RESOURCE=300;
 public static final int CLOCK_PULSE=1000;
 public static final String file="periodicupdate";
 ////////////////////////////////////////////////////
-public static final double SCHEDULE_NOW=0.0;
+public static final double SCHEDULE_IMM = 0.0;
+public static final double SCHEDULE_NOW = 10.0;
 public static final int RETRY=-1;
 public static final int PING=4;
 public static final int PONG=5;
@@ -82,5 +83,6 @@ public static final int UTILIZATION_FEED=RESOURCE+8;
 public static final int SET_LEADER=RESOURCE+9;
 public static final int SET_LOAD=RESOURCE+10;
 public static final int SEND_FEEDBACK=RESOURCE+11;
+public static final int SEND_ACK=RESOURCE+12;
 ///////////////////////////////////////////////////////
 }

@@ -9,6 +9,7 @@
 
 package gridmonitor;
 
+import java.util.*;
 import java.util.Calendar;
 import java.util.Iterator;
 import java.util.Collection;
@@ -88,6 +89,9 @@ public abstract class AllocPolicy extends GridSimCore
     int gridmonitoradminid;
     int nodeid;
     int indexnode;
+    
+    int node_to_node_latency;
+    
     ///////////////////// ABSTRACT METHODS /////////////////////////////
 
     /**
@@ -357,6 +361,7 @@ public abstract class AllocPolicy extends GridSimCore
 
         double load = calculateTotalLoad(0);
         
+        //System.out.println("Added resource with pe count = " + totalPE_);
         //this.addTotalLoad(load);
         //accTotalLoad_.add(load);
         
@@ -397,13 +402,18 @@ public abstract class AllocPolicy extends GridSimCore
      * @pre entityName != null
      * @post $none
      */
-    protected AllocPolicy(String resName, String entityName,int gridmonitoradminid_,int nodeid_) throws Exception
+    protected AllocPolicy(String resName, String entityName,int gridmonitoradminid_,int nodeid_, ArrayList clocked_nodes) throws Exception
     {
         super(resName + "_" + entityName);
 
         myId_ = this.get_id();
-        //System.out.println("My id is: "+myId_);
+        
+        System.out.println("My id is: "+myId_);
+        
         nodeid=nodeid_;
+        
+        clocked_nodes.add(myId_);
+        
         gridmonitoradminid=gridmonitoradminid_;
         resName_ = resName;
         initTime_ = 0;
@@ -417,6 +427,9 @@ public abstract class AllocPolicy extends GridSimCore
         accTotalLoad_ = new Accumulator();
         indexnode=-1;
         addTotalLoad(0.0);
+         int avg_hops = 1; 
+         int latency_per_hop = 1; // Latency in micro seconds
+         node_to_node_latency = avg_hops * latency_per_hop * 1000;
     }
 
     /**
@@ -430,12 +443,12 @@ public abstract class AllocPolicy extends GridSimCore
         //HashCode.compute(load,indexkey);               
                                    
         //if(Double.compare(accTotalLoad_.getLast(),Double.NaN)==0) 
-        if((accTotalLoad_.add(load))==0)
+        if ((accTotalLoad_.add(load)) == 0)
         {
             //accTotalLoad_.add(load);
-            //System.out.println("Updated load "+accTotalLoad_.getLast()+" at node "+this.nodeid);
-           
-            this.send(this.myId_,GridMonitorTags.SCHEDULE_NOW,GridMonitorTags.UPDATE_INDEX,new GridMonitorIO(this.myId_,this.myId_,(Object)load));
+            //System.out.println("Updated load " +  accTotalLoad_.getLast() + " at node " + this.nodeid);
+          
+            this.send(this.myId_,node_to_node_latency,GridMonitorTags.UPDATE_INDEX,new GridMonitorIO(this.myId_,this.myId_,(Object)load));
              //indexCurrentLoad();
         }
          //else
@@ -452,7 +465,10 @@ public abstract class AllocPolicy extends GridSimCore
     public void index()
     {
         double load=this.getTotalLoad().getLast();
-        this.send(this.myId_,GridMonitorTags.SCHEDULE_NOW,GridMonitorTags.UPDATE_INDEX,new GridMonitorIO(this.myId_,this.myId_,(Object)load));
+        
+        //System.out.println("Updating load " + load);
+        this.send(this.myId_,node_to_node_latency,GridMonitorTags.UPDATE_INDEX,new GridMonitorIO(this.myId_,this.myId_,(Object)load));
+        
     }
 
     /**
@@ -530,16 +546,29 @@ public abstract class AllocPolicy extends GridSimCore
      */
     protected double calculateTotalLoad(int size)
     {   
-        double val = (size + 1.0) / totalPE_;
-        int numGridletPerPE = (int) Math.ceil(val);
+        double val = (double)size / totalPE_;
+              
+        //int numGridletPerPE = (int) Math.ceil(val);
         
         // load is between [0.0, 1.0] where 1.0 is busy and 0.0 is not busy
         
         double localLoad = resCalendar_.getCurrentLoad();
         //localLoad=0;
         
-        // System.out.println("calculating  total load with "+numGridletPerPE+" processing gridlet.");
-        double load = 1.0 - ( (1 - localLoad) / numGridletPerPE );
+        //if (size > 0)
+        //{
+        //  System.out.println("Current load is " +  val + " local load " + localLoad + " size " + size + " PE " + totalPE_ + " at node " + this.nodeid);
+        //}
+        
+        //System.out.println("calculating  total load with "+numGridletPerPE+" processing gridlet.");
+        //double load = 1.0 - ( (1 - localLoad) / numGridletPerPE );
+        double load = localLoad + val;
+        
+        //if (load > 0.0 && load < 1.0)
+        //{
+        //  System.out.println("Current total load = " + load);
+        //}
+        
         if (load < 0.0) {
             load = 0.0;
         }
@@ -749,4 +778,3 @@ public abstract class AllocPolicy extends GridSimCore
          
     
 } // end class
-

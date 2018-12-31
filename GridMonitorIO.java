@@ -243,12 +243,14 @@ class FeedbackIndexEntry
 
 class RangeQuery{
  private byte start[];
- 
  private byte end[];
+ 
  RangeQuery(byte []start_,byte[] end_)
  {
      int comp;
-     comp=HashCode.compare(start_,end_);
+     
+     comp = HashCode.compare(start_,end_);
+     
      if(comp<=0)
      {
         start=start_.clone();

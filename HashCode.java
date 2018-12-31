@@ -15,18 +15,33 @@ package gridmonitor;
  */
 import java.security.*;
 import java.util.*;
+import java.nio.charset.*;
+
 public class HashCode {
     
     public static void compute(int id,byte[]hash)
     {
+         
+        Charset charset = Charset.forName("UTF-8");
+        CharsetEncoder encoder = charset.newEncoder();
+        CharsetDecoder decoder = charset.newDecoder();
+        
         byte[]temp=new byte[20];
         int i;
         try{
         String id_str=Integer.toString(id);
         MessageDigest sha=MessageDigest.getInstance("SHA-1");
+        //sha.update(id_str.getBytes());
         sha.update(id_str.getBytes());
         temp=sha.digest();
-        for(i=0;i<temp.length;hash[i]=temp[i],i++);
+        String str1 = new String(temp);
+        //System.out.println("SHA-1 for value " + id + " " + id_str + " " + id_str.getBytes().toString() + " " + str1);
+        
+        for(i=0; i < str1.length(); hash[i] = str1.getBytes()[i], i++);
+        
+        //String str2 = new String(hash);
+        
+        //System.out.println("SHA-1 hash " + str2);
         }
         catch(Exception e){
             System.out.println(e.getMessage());
@@ -34,14 +49,15 @@ public class HashCode {
      }
      public static void compute(double id,byte[]hash)
     {
-        byte[]temp=new byte[20];
+        byte[]temp = new byte[20];
         int i;
-        try{
-        String id_str=Double.toString(id);
-        MessageDigest sha=MessageDigest.getInstance("SHA-1");
-        sha.update(id_str.getBytes());
-        temp=sha.digest();
-        for(i=0;i<temp.length;hash[i]=temp[i],i++);
+        try
+        {
+          String id_str = Double.toString(id);
+          MessageDigest sha = MessageDigest.getInstance("SHA-1");
+          sha.update(id_str.getBytes());
+          temp = sha.digest();
+          for (i = 0; i < temp.length; hash[i] = temp[i], i++);
         }
         catch(Exception e){
             System.out.println(e.getMessage());
@@ -49,22 +65,31 @@ public class HashCode {
      }
 
      
-     public static void computeConsistentHash(double id,byte[]hash)
+     public static void computeConsistentHash(double id, byte[]hash)
      {
-         byte hashkeyindex[][]=new byte[100][];
-         int i;
+         byte hashkeyindex[][]=new byte[10000][];
+         
+         int i;         
+         
          KeyComparator comp=new KeyComparator();
-         for(i=0;i<100;i++)
+         
+         //System.out.println("Id for hashcode " + id);
+         
+         for(i = 0; i < 10000; i++)
          {
-             hashkeyindex[i]=new byte[20];
-             HashCode.compute(i,hashkeyindex[i]);
-             
+             hashkeyindex[i] = new byte[20];
+             HashCode.compute(i, hashkeyindex[i]);   
+             //HashCode.computeConsistentHash(i, hashkeyindex[i]);
          }
-         Arrays.sort(hashkeyindex,comp);
-         for(i=0;i<hash.length;i++)
+         
+         //Arrays.sort(hashkeyindex, comp);
+         
+         for (i = 0; i < hash.length; i++)
          {             
-             hash[i]=hashkeyindex[(int)Math.round(id*100)][i];
-             
+            if (id <= 1)
+              id = id * 100;
+            
+             hash[i] = hashkeyindex[(int)Math.round(id)][i];
          }        
          
         /* for(i=0;i<11;i++)
