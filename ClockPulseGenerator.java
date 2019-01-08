@@ -51,6 +51,8 @@ public class ClockPulseGenerator extends GridSimCore
         
         ClockPulse pulse = new ClockPulse(0);  
                 
+        System.out.println("Clock pulse generator started");
+        
         for (int node = 0; node < clocked_nodes.size(); node++)
         {
           wait_time[node] = 0;
@@ -60,7 +62,7 @@ public class ClockPulseGenerator extends GridSimCore
         // Generate clock pulse based on cycle time for a given component
         try
         {                  
-          while (pulse.getPulseCount() < 1000000 * 1000)
+          while (pulse.getPulseCount() < 1000)
           {
             //this.sleep(100);
             
@@ -84,16 +86,18 @@ public class ClockPulseGenerator extends GridSimCore
                //System.out.println("Clocking node " + node);
                
                //System.out.println("Sending clock pulse " + pulsecount + " to node " + node);
-            }
+            }              
             
             duration = Sim_system.clock() - uptime; 
             
             pulse.increasePulseCount();
             
             pulsecount = pulse.getPulseCount();
+            
+            System.out.println("Sending clock pulse " + pulsecount + " at " + Sim_system.clock());
           }
           
-          isrunning=false;
+          isrunning= false;
           
           System.out.println("Clock genrator finished");
         }
@@ -114,7 +118,7 @@ public class ClockPulseGenerator extends GridSimCore
     
     public void setWaitTime(int nodeid, int clock_wait)
     {
-      System.out.println("Waittime for " + nodeid + " set to " + clock_wait);
+      //System.out.println("Waittime for " + nodeid + " set to " + clock_wait);
       
       wait_time[nodeid] = clock_wait;
       

@@ -54,11 +54,7 @@ public class Accumulator
      * @post $none
      */
     public int add(double item, int times)
-    {
-        
-            
-                
-        
+    {        
         if (times < 1||item==last_) {
             return -1;
         }

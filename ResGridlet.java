@@ -457,7 +457,8 @@ public class ResGridlet
             length = 0.0;
         }
 
-        return length;
+        //return length;
+        return 0.0;
     }
 
     /**

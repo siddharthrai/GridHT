@@ -17,39 +17,75 @@ import eduni.simjava.Sim_system;
 import java.security.*;
 import java.util.*;
 import java.io.*;
+import gridsim.*;
+import eduni.simjava.*;
 public class Example1 {
     
     /** Creates a new instance of Example1 */
+  
+  
     public static void main(String [] args) {
         int i;
         String line;
         String parts[];
         
-        ArrayList  clocked_nodes;
+        int query_count;
         
-        GridMonitorResource res[]  = new GridMonitorResource[500];
-        GridMonitorBroker broker[] = new GridMonitorBroker[500];
+        boolean with_gridlet;
+        
+        ArrayList clocked_nodes;
+
         
         clocked_nodes = new ArrayList();
-        
-        ClockPulseGenerator global_clock;
-        
+               
         RandomAccessFile util, job;
+        FileWriter query_count_trace;
+        
         long time, size;
         
         int nodes;
         
-        nodes = 100;
+        nodes = 50;
         
-        try
-        {          
-          util=new RandomAccessFile("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_utilization.dat","rw");
+        query_count = 0;
+        
+        with_gridlet = false;
+        
+        //for (int itr = 0; itr < 2; itr++)
+        {
+          ClockPulseGenerator global_clock;
+                  
+          GridMonitorResource res[]  = new GridMonitorResource[500];
+          GridMonitorBroker broker[] = new GridMonitorBroker[500];
+        
+          clocked_nodes.clear();
+          
+          try
+          {        
+            
+            Sim_system.initialise();
+            
+            //util=new RandomAccessFile("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_utilization.dat","rw");
          //job=new RandomAccessFile("./inputdata/das2_arrival_abs.dat","rw");
          //line=job.readLine();
          
-         
+         if (args.length > 0)
+         {
+           System.out.println(args[0]);
+           String gl = new String("with_gridlet");
+           if (gl.equals(args[0]) == true)
+           {
+            with_gridlet = true;
+           }
+           
+           query_count_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_query_count" + "_" + args[0] + ".dat", true);
+         }  
+         else
+         {
+           query_count_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_query_count" + ".dat", true);
+         }
         // parts=line.split(" ");
-         //System.out.println(parts[0]+":"+parts[1]);
+        //System.out.println(parts[0]+":"+parts[1]);
       /*
         try {
             int i=10;
@@ -117,7 +153,19 @@ public class Example1 {
         
             GridMonitor gm = new GridMonitor();
             
-            clocked_nodes.add(gm.getAdminId());
+            int admin = gm.getAdminId();
+            clocked_nodes.add(admin);
+            
+            //GridMonitorAdmin new_admin1 = new GridMonitorAdmin("admin");
+            //GridMonitorAdmin new_admin2 = new GridMonitorAdmin("admin");
+            
+            //int admin1 = new_admin1.getNodeId();
+            //clocked_nodes.add(admin1);
+            
+            //int admin2 = new_admin2.getNodeId();
+            //clocked_nodes.add(admin2);
+            
+            //new_admin1.setPeerNode(admin2);
             
             //String str1=new String("ac3478d69a3c81fa62e6f5c3696165a4e5e6ac5");
             // String str2=new String("356a192b7913b04c54574d18c28d46e6395428ab");            
@@ -126,35 +174,62 @@ public class Example1 {
             
             for (i = 0; i < nodes; i++)
             {
-                res[i] = new GridMonitorResource("res" + i, gm.getAdminId(), util, clocked_nodes);
+                res[i] = new GridMonitorResource("res" + i, gm.getAdminId(), null, clocked_nodes, with_gridlet);
                 System.out.println("Finished instantiating res " + i);
                 //clocked_nodes.add(res[i].getNodeId());
             }
             
             for (i = 0; i < 1; i++)
             {
-                broker[i] = new GridMonitorBroker("broker" + i, gm.getAdminId(), "das2_fs" + i + ".dat", clocked_nodes);
+                broker[i] = new GridMonitorBroker("broker" + i, gm.getAdminId(), "das2_fs" + i + ".dat", clocked_nodes, with_gridlet);
                 //clocked_nodes.add(broker[i].getNodeId());
             }
             
             System.out.println("Total clocked nodes " + clocked_nodes.size());
             
             global_clock = new ClockPulseGenerator(0, 4, clocked_nodes);
-         
+            
+            gm.setClockPulseGenerator(global_clock);
+            
             broker[0].setClockPulseGenerator(global_clock);
             
             for (i = 0; i < nodes; i++)
             {
               res[i].setClockPulseGenerator(global_clock);
             }
+                                   
+          //  new_admin1.setClockPulseGenerator(global_clock);
+          //  new_admin2.setClockPulseGenerator(global_clock);
             
             gm.startsimulation(); 
-            
-            util.close();           
-        }
-        catch(Exception e)
-        {   
           
-        }          
+            Sim_system.run();
+            
+            query_count = broker[0].getQueryCount();
+            
+            gm.finish();            
+            gm = null;
+            
+            for (i = 0; i < nodes; i++)
+            {
+              res[i] = null;
+            }
+            
+            broker[0] = null;
+        
+            global_clock = null;
+            //util.close();           
+            
+            query_count_trace.write("Total query " + query_count + "\n");
+            
+            query_count_trace.close();
+          }
+          catch(Exception e)
+          {   
+            System.out.println("Exception at " + e.getStackTrace()[0].getLineNumber());
+          }
+        }
+               
+        System.out.println("Total query " + query_count);
     }    
 }

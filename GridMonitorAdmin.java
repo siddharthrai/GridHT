@@ -19,8 +19,8 @@ public class GridMonitorAdmin extends GridSimCore
   int nodeid;
   int bandwidth;
   int messagecount;
-  int INDEX_DHT_NODES    = 15;
-  int FEEDBACK_DHT_NODES = 10;
+  int INDEX_DHT_NODES    = 2;
+  int FEEDBACK_DHT_NODES = 2;
   int count_nodes_system;
   int count_indexed_values;
 
@@ -30,17 +30,24 @@ public class GridMonitorAdmin extends GridSimCore
   ArrayList grouplist;  //list of groups
   ArrayList queue;
   ArrayList deferedqueue;    
-
+  ArrayList pending_event_list;
+  
   Group currentgroup;   //cuurrent group of nodes
 
   boolean isstable;
   boolean indexingcomplete;
   boolean tracingtraffic;
 
+  boolean ready;
+  
   double reqtime;
   double arrivaltime;
 
   int node_to_node_latency;
+  
+  int peer;
+  
+  int ping_count;
   
   ClockPulseGenerator clockpulsegenerator;
 
@@ -53,11 +60,18 @@ public class GridMonitorAdmin extends GridSimCore
     feedbacknodes = new ArrayList();
     brokerlist    = new ArrayList();
     deferedqueue  = new ArrayList();        
-
+    
+    pending_event_list = new ArrayList();
+    
     queue = new ArrayList();
 
     nodeid = this.get_id();
 
+    peer = -1;
+    ping_count = 0;
+    
+    ready = true;
+    
     //clockpulsegenerator   = new ClockPulseGenerator(this.nodeid, 4);
     count_nodes_system    = 0;
     count_indexed_values  = 0;
@@ -78,8 +92,11 @@ public class GridMonitorAdmin extends GridSimCore
     int latency_per_hop = 1; // Latency in micro seconds
     node_to_node_latency = avg_hops * latency_per_hop * 1;
     
-    //clockpulsegenerator=new ClockPulseGenerator(this.nodeid);
-    System.out.println("Administartor node is up now !");
+    //clockpulsegenerator=new ClockPulseGenerator(this.nodeid);#
+    
+    clockpulsegenerator = null;
+    
+    System.out.println("Administartor node is up now ! nodeid " + nodeid);
   }
 
   /*
@@ -91,20 +108,39 @@ public class GridMonitorAdmin extends GridSimCore
   public void body() 
   {
     Sim_event ev;
+    Sim_event new_ev;
 
-    while (Sim_system.running()) 
+    System.out.println("In admin body with peer " + peer);
+    
+    while (clockpulsegenerator != null && clockpulsegenerator.isRunning()) 
     {
+      /*
+      if (ready == true && peer != -1)
+      {
+        sendPing(peer);
+      }
+      */
+      
       ev = new Sim_event();
-
+      
       this.getNextEvent(ev);
 
-      if (ev.get_src() != -1) 
+      if (ready == true && pending_event_list.size() > 0)
       {
-        processEvent(ev);
+        while (pending_event_list.size() > 0)
+        {
+          new_ev = (Sim_event) pending_event_list.remove(0);
+      
+          processEvent(new_ev);
+        }
+        
+        ready = false;
       }
 
       ev = null;
     }
+    
+    System.out.println("Admin finished");
   }
 
   /*
@@ -220,13 +256,16 @@ public class GridMonitorAdmin extends GridSimCore
         {
           // TODO: initiate processing deferred queue.
           
-          //System.out.println("join completed..."+deferedqueue.size());
+          System.out.println("join completed..."+deferedqueue.size());
+          
           i = deferedqueue.iterator();
 
           while(i.hasNext()) 
           {
             ev_ = (Sim_event)deferedqueue.remove(0);
 
+            System.out.println("Processing " + ev_.get_tag());
+            
             if (ev_.get_tag() != GridMonitorTags.ADD_BROKER) 
             {
               processOtherEvents(ev_);
@@ -256,6 +295,8 @@ public class GridMonitorAdmin extends GridSimCore
         break;
 
       default:
+        //processOtherEvents(ev_);
+        
         if (isstable != true) 
         {
           deferedqueue.add(ev_);
@@ -263,8 +304,7 @@ public class GridMonitorAdmin extends GridSimCore
         else 
         {
           processOtherEvents(ev_);
-        }
-
+        }       
         break;
     }
   }
@@ -285,6 +325,10 @@ public class GridMonitorAdmin extends GridSimCore
     //System.out.println("****"+ev_.get_tag());
     switch(ev_.get_tag()) 
     {
+       case GridMonitorTags.PONG:
+        System.out.println("Received PONG at " + clockpulsegenerator.getPulseCount());         
+        break;
+          
       case GridMonitorTags.ADD_BROKER:
         //System.out.println("Request at admin node to add Broker added with id " + 
         //    src + " from " + this.nodeid);
@@ -309,13 +353,13 @@ public class GridMonitorAdmin extends GridSimCore
         break;
 
       case GridMonitorTags.GET_A_INDEX_NODE:
-        System.out.println("Request for an index node from " + src + " at " + dest);
+        //System.out.println("Request for an index node from " + src + " at " + dest);
         this.send(src, node_to_node_latency, GridMonitorTags.A_INDEX_NODE, 
             new GridMonitorIO(this.nodeid, src, (Object)indexnodes.get(0)));
         break;
 
       case GridMonitorTags.GET_A_FEEDBACK_NODE:
-        System.out.println("Request for an feedback node from " + src + " at " + dest);
+        //System.out.println("Request for an feedback node from " + src + " at " + dest);
         this.send(src, node_to_node_latency, GridMonitorTags.A_FEEDBACK_NODE, 
             new GridMonitorIO(this.nodeid, src, (Object)feedbacknodes.get(0)));
         break;
@@ -324,7 +368,7 @@ public class GridMonitorAdmin extends GridSimCore
         count_indexed_values += 1;
         //System.out.println("Indexed values " + count_indexed_values);
         
-        if (this.count_indexed_values >= 20) 
+        if (this.count_indexed_values >= 5) 
         {
           indexingcomplete = true;
           i = indexnodes.iterator();
@@ -344,7 +388,7 @@ public class GridMonitorAdmin extends GridSimCore
             currentgroup = (Group)i.next();
             src = currentgroup.getLeader();
 
-            System.out.println("Leader is " + src);
+            //System.out.println("Leader is " + src);
 
             this.send(src, node_to_node_latency, GridMonitorTags.GROUP, new GridMonitorIO(this.nodeid, src, currentgroup.getMember()));
           }
@@ -370,12 +414,13 @@ public class GridMonitorAdmin extends GridSimCore
 
       case GridMonitorTags.PING:
         src = ((GridMonitorIO)ev_.get_data()).getsrc();
-        this.sim_process(1.0);
+        ///this.sim_process(1.0);
 
         //if(pingrequest)
-        //System.out.println("Received at "+Sim_system.clock());
+        System.out.println("Received PING " + ((GridMonitorIO)ev_.get_data()).getdata() + " at " + clockpulsegenerator.getPulseCount());
         this.send(src, 0.0, GridMonitorTags.PONG, new GridMonitorIO(this.nodeid, src, null));
     }
+    
   }
 
   private void serviceDemonTask(int pulsecount_)
@@ -419,12 +464,16 @@ public class GridMonitorAdmin extends GridSimCore
     {
       this.sim_get_next(ev_);        
 
+      //System.out.println("Node " + this.nodeid + " received event " + ev_.get_tag());
+      
       if(ev_.get_tag() == GridMonitorTags.CLOCK_PULSE && Sim_system.running())
       {            
         pulse = (ClockPulse)(((GridMonitorIO)ev_.get_data()).getdata());                           
         //serviceDemonTask(pulse.getPulseCount());               
 
         //System.out.println("Clock pulse:"+pulse.getPulseCount()+" received at "+this.nodeid);
+        ready = true;
+        finish = true;
       }
       else
       {       
@@ -437,10 +486,33 @@ public class GridMonitorAdmin extends GridSimCore
           arrivaltime   = Sim_system.clock();
           messagecount  = 1;
         } 
-
+      
+        pending_event_list.add(ev_);
         finish = true;
       }
     }
     //System.out.println("Obtained event with tag "+ev_.get_tag()+" at "+Sim_system.clock());
+  }
+  
+  public void sendPing(int dest)
+  {     
+    //System.out.println("Request to send PING to " + dest + " from " + nodeid);
+    ping_count++;
+    send(dest, 0, GridMonitorTags.PING, new GridMonitorIO(nodeid, dest, ping_count));   
+  }
+  
+  public int getNodeId()
+  {
+    return this.nodeid;
+  }
+  
+  public void setPeerNode(int node)
+  {
+    peer = node;
+  }
+  
+  public void setClockPulseGenerator(ClockPulseGenerator clock)
+  {
+    clockpulsegenerator = clock;
   }
 }

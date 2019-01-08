@@ -37,7 +37,7 @@ public class GridMonitor
   {
     try
     {
-      Sim_system.initialise();
+      //Sim_system.initialise();
 
       admin    = new GridMonitorAdmin("admin");
       calendar = Calendar.getInstance();
@@ -46,6 +46,7 @@ public class GridMonitor
     }
     catch(Exception e)
     {
+      System.out.println("Exception in GridMonitor at " + e.getStackTrace()[0].getLineNumber());
     }
   }
 
@@ -55,7 +56,9 @@ public class GridMonitor
 
   public void startsimulation()
   {
-    Sim_system.run();
+    System.out.println("Starting a new simulation");
+    
+    //Sim_system.run();
   }
 
   /*
@@ -91,5 +94,16 @@ public class GridMonitor
     }
 
     return clone;
+  }
+  
+  public void finish()
+  {
+    admin = null;
+    calendar = null;
+  }
+  
+  public void setClockPulseGenerator(ClockPulseGenerator clock)
+  {
+    admin.setClockPulseGenerator(clock);
   }
 }

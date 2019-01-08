@@ -446,8 +446,11 @@ public abstract class AllocPolicy extends GridSimCore
         if ((accTotalLoad_.add(load)) == 0)
         {
             //accTotalLoad_.add(load);
-            //System.out.println("Updated load " +  accTotalLoad_.getLast() + " at node " + this.nodeid);
-          
+            if (accTotalLoad_.getLast() > 0.0)
+            {
+              System.out.println("[ALLOC POLICY] Updated load " +  accTotalLoad_.getLast() + " at node " + this.nodeid);
+            }
+            
             this.send(this.myId_,node_to_node_latency,GridMonitorTags.UPDATE_INDEX,new GridMonitorIO(this.myId_,this.myId_,(Object)load));
              //indexCurrentLoad();
         }
@@ -455,10 +458,7 @@ public abstract class AllocPolicy extends GridSimCore
          {
             //changes load to be published by currunt node
             //System.out.println("Called.... "+load);
-           //accTotalLoad_.add(load);
-                        
-           
-            
+            //accTotalLoad_.add(load);
          }
     }
     
@@ -466,7 +466,7 @@ public abstract class AllocPolicy extends GridSimCore
     {
         double load=this.getTotalLoad().getLast();
         
-        //System.out.println("Updating load " + load);
+        System.out.println("[ALLOC POLICY] Updating load " + load);
         this.send(this.myId_,node_to_node_latency,GridMonitorTags.UPDATE_INDEX,new GridMonitorIO(this.myId_,this.myId_,(Object)load));
         
     }

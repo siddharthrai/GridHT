@@ -148,7 +148,12 @@ class TimeShared extends gridmonitor.AllocPolicy {
         //a loop that is looking for internal events only
         while (Sim_system.running()) {
             
-            ev=new Sim_event();
+            //if ((Sim_system.clock() % 10 == 0) && (gridletInExecList_.size() > 0))
+            //{
+            //  this.addTotalLoad(0.0);
+            //}
+            
+            ev = new Sim_event();
             
             super.sim_get_next(ev);
             
@@ -166,7 +171,7 @@ class TimeShared extends gridmonitor.AllocPolicy {
                 
                 switch(ev.get_tag()) {
                     case GridMonitorTags.UPDATE_INDEX:
-                        //previousvalue=currentvalue;
+                        previousvalue=currentvalue;
                         currentvalue=(Double)((GridMonitorIO)ev.get_data()).getdata();
                         
                         //System.out.println("Updateing index " + currentvalue);
@@ -177,7 +182,7 @@ class TimeShared extends gridmonitor.AllocPolicy {
                     case GridMonitorTags.A_INDEX_NODE:
                         src=(Integer)(((GridMonitorIO)ev.get_data()).getdata());
                       
-                        System.out.println("Received an index node in time shared " + this.myId_ + " from " + src);
+                        //System.out.println("Received an index node in time shared " + this.myId_ + " from " + src);
                                                 
                         this.send(src,node_to_node_latency,GridMonitorTags.FIND_SUCCESSOR,new GridMonitorIO(this.myId_,src,(Object)indexkey));
                         
@@ -187,7 +192,11 @@ class TimeShared extends gridmonitor.AllocPolicy {
                         //System.out.println("Index node " + indexnode);
                         indexentry=new IndexEntry(currentvalue,indexkey,this.nodeid);
                         this.send(src,node_to_node_latency,GridMonitorTags.INDEX,new GridMonitorIO(this.myId_,src,(Object)indexentry));
-                        //System.out.println("Load updated to " + HashCode.getString(indexkey) + " for " + this.nodeid + " to value " + currentvalue);
+                        
+                        if (currentvalue > 0.0)
+                        {
+                          System.out.println("[TIME SHARED] Load updated to " + HashCode.getString(indexkey) + " for " + this.nodeid + " to value " + currentvalue);
+                        }
                         break;
                     case GridMonitorTags.INDEX_UPDATED:
                         src=(Integer)(((GridMonitorIO)ev.get_data()).getsrc());
@@ -196,7 +205,7 @@ class TimeShared extends gridmonitor.AllocPolicy {
                         
                         isupdating=false;
                         //System.out.println(update_count+":value updated by "+this.nodeid+" to "+HashCode.getString(indexkey));
-                        if(Double.isNaN(deferredupdate)==false) {
+                        if (Double.isNaN(deferredupdate)==false) {
                             //this.send(this.myId_,node_to_node_latency,GridMonitorTags.UPDATE_INDEX,new GridMonitorIO(this.myId_,this.myId_,(Object)deferredupdate));
                             // System.out.println("Updateing deferred index " + deferredupdate);
                             
@@ -247,7 +256,7 @@ class TimeShared extends gridmonitor.AllocPolicy {
             ++update_count;
             isupdating=true;   
             
-            //currentvalue=newvalue;
+            currentvalue = newvalue;
             //System.out.println("Computing hash for " + previousvalue + " " + currentvalue);
             
             HashCode.computeConsistentHash(previousvalue,previousindexkey);
@@ -255,11 +264,10 @@ class TimeShared extends gridmonitor.AllocPolicy {
                                    
             //System.out.println("Current load = " + currentvalue + " index key = " + HashCode.getString(indexkey));
             
-            if(indexnode!=-1) {
+            if (indexnode != -1) {
                 indexentry=new IndexEntry(previousvalue,previousindexkey,this.nodeid);
                 //System.out.println(update_count+":Sending remove request.. by "+this.nodeid+" "+HashCode.getString(previousindexkey));
-                this.send(indexnode,node_to_node_latency,GridMonitorTags.REMOVE,new GridMonitorIO(this.myId_,indexnode,(Object)indexentry));
-                
+                this.send(indexnode,node_to_node_latency,GridMonitorTags.REMOVE,new GridMonitorIO(this.myId_,indexnode,(Object)indexentry));           
             } 
             else 
             {
@@ -316,10 +324,10 @@ class TimeShared extends gridmonitor.AllocPolicy {
         // sends back an ack if required
         if (ack == true)         
         {
-            this.send(src, GridMonitorTags.SCHEDULE_IMM, GridSimTags.GRIDLET_SUBMIT_ACK,
-                new GridMonitorIO(this.nodeid, src, load));
-            System.out.println("Ack sent for gridlet submission to node " + src + 
-                " from node " + this.nodeid + " with load " + load);
+            //this.send(src, GridMonitorTags.SCHEDULE_IMM, GridSimTags.GRIDLET_SUBMIT_ACK,
+            //    new GridMonitorIO(this.nodeid, src, load));
+            //System.out.println("Ack sent for gridlet submission to node " + src + 
+            //    " from node " + this.nodeid + " with load " + load);
         }
         
         // System.out.println("Gridlet submitted..."+gl.getGridletFinishedSoFar());
@@ -826,7 +834,7 @@ class TimeShared extends gridmonitor.AllocPolicy {
             if (rgl.getRemainingGridletLength() <= 0.0) 
             {
                 gridletFinish(rgl, Gridlet.SUCCESS);
-                //System.out.println("Gridlet finished....on node "+this.nodeid+" at "+Sim_system.clock());
+                System.out.println("[TIME SHARED] Gridlet finished at node "+this.nodeid+" at "+Sim_system.clock());
                 continue;  // not increment i coz the list size also decreases
             }
             
@@ -892,6 +900,8 @@ class TimeShared extends gridmonitor.AllocPolicy {
         }
         
         // update Gridlets in execution up to this point in time
+        //System.out.println("[TIME SHARED] Inernal event");
+        
         updateGridletProcessing();
         
         // schedule next event
