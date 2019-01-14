@@ -15,12 +15,13 @@ public class GridMonitorIO
 {
   private int src,dest;
   private Object data;
-
+    
   /** Creates a new instance of GridMonitorIO */
   public GridMonitorIO(int src_,int dest_,Object data_) {
     src=src_;
     dest=dest_;
     data=data_;
+    cycle=
   }
   public Object getdata()
   {

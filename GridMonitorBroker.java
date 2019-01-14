@@ -32,7 +32,8 @@ public class GridMonitorBroker extends GridSimCore
   double querytime;
   int    last_queryid;  
   byte   hashkey[];
-
+  int    nodes;
+  int    job_scheduled;
   int    reqsend,rplyreceived;
   double searchrange[];
 
@@ -42,6 +43,7 @@ public class GridMonitorBroker extends GridSimCore
   
   int    index_query_calls;
   int    query_count;  
+  double total_query_time;
   int    currentqueryno;
   double beginat;
   
@@ -61,13 +63,14 @@ public class GridMonitorBroker extends GridSimCore
 
   FileWriter out;
   FileWriter query_time;
+  FileWriter job_count;
 
   ArrayList pending_event_list;
   
   int schedulecount;
 
   /** Creates a new instance of GridMonitorBroker */
-  public GridMonitorBroker(String name_, int gridmonitoradminid_, String inputfile_, ArrayList clocked_nodes, boolean with_gridlet_) throws Exception 
+  public GridMonitorBroker(String name_, int gridmonitoradminid_, int total_nodes, String inputfile_, ArrayList clocked_nodes, boolean with_gridlet_) throws Exception 
   {
     super(name_);
 
@@ -103,8 +106,10 @@ public class GridMonitorBroker extends GridSimCore
     node_to_node_latency = avg_hops * latency_per_hop * 1;
     
     out = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_schedule_trace_"+this.nodeid+".dat");
-    query_time = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_query_time_"+this.nodeid+".dat");
-
+    
+    //query_time = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_query_time_" + this.nodes + ".csv");
+    //job_count = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_job_count_" + this.nodes + ".csv");
+    
     System.out.println(inputfile_);
     
     inputfile   = new RandomAccessFile("./inputdata/lcg_arrival_abs.dat","r");
@@ -379,7 +384,8 @@ public class GridMonitorBroker extends GridSimCore
       System.out.println("broker finished...");
 
       out.close();
-      query_time.close();
+      //query_time.close();
+      //job_count.close();
       timestamp.close();
       resultcount.close();
       result.close();
@@ -495,7 +501,9 @@ public class GridMonitorBroker extends GridSimCore
         }
 
         //querytime=Sim_system.clock();
-        query_time.write(Sim_system.clock() + ";" + (clockpulsegenerator.getPulseCount() - querytime) + "\n");
+        //query_time.write(Sim_system.clock() + ";" + (clockpulsegenerator.getPulseCount() - querytime) + "\n");
+        
+        total_query_time = total_query_time + (clockpulsegenerator.getPulseCount() - querytime);
         
         System.out.println("Query time one hop at node " + src + " = " + (clockpulsegenerator.getPulseCount() - querytime) + 
             " " + clockpulsegenerator.getPulseCount());
@@ -509,7 +517,7 @@ public class GridMonitorBroker extends GridSimCore
 
         query_in_progress = false;
         
-        if (resourceid.size() < 50)
+        if (resourceid.size() < 10)
         {
           //if (clockpulsegenerator.isRunning() == true)
           {
@@ -527,7 +535,7 @@ public class GridMonitorBroker extends GridSimCore
             //query = queryset[5];
             //System.out.println("Range query " + last_queryid + " " + query.getStart() + " " + 
             //query.getEnd() + " " + HashCode.getString(query.getStart()) + " " + HashCode.getString(query.getEnd()));
-            
+            schedule(resourceid);
             this.indexQuery();
           }
         }
@@ -706,7 +714,8 @@ public class GridMonitorBroker extends GridSimCore
           
           this.send(src, node_to_node_latency, 
             GridSimTags.GRIDLET_SUBMIT, new GridMonitorIO(this.nodeid, src, gridlet1));
-                    
+          
+          job_scheduled = job_scheduled + 1;
         /*          
           this.getNextEvent(ev);
           
@@ -850,5 +859,15 @@ public class GridMonitorBroker extends GridSimCore
   public int getQueryCount()
   {
     return query_count;
+  }
+  
+  public double getQueryTime()
+  {
+    return total_query_time / query_count;
+  }
+  
+  public int getJobCount()
+  {
+    return job_scheduled;
   }
 }

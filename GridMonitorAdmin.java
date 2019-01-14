@@ -19,8 +19,8 @@ public class GridMonitorAdmin extends GridSimCore
   int nodeid;
   int bandwidth;
   int messagecount;
-  int INDEX_DHT_NODES    = 2;
-  int FEEDBACK_DHT_NODES = 2;
+  int INDEX_DHT_NODES    = 6;
+  int FEEDBACK_DHT_NODES = 6;
   int count_nodes_system;
   int count_indexed_values;
 
