@@ -32,6 +32,7 @@ public class Example1 {
         int query_count;
         double query_time;
         int job_count;
+        long job_success;
         
         boolean with_gridlet;
         
@@ -52,6 +53,8 @@ public class Example1 {
         nodes = 128;
         
         query_count = 0;
+        job_count   = 0;
+        job_success = 0;
         
         with_gridlet = false;
         
@@ -228,6 +231,11 @@ public class Example1 {
             query_time  = broker[0].getQueryTime();
             job_count   = broker[0].getJobCount();
             
+            for (i = 0; i < nodes; i++)
+            {
+                job_success = job_success + res[i].getSubmitted();
+            }
+            
             gm.finish();            
             gm = null;
             
@@ -255,7 +263,9 @@ public class Example1 {
             //System.out.println("Exception in Example at " + e.getStackTrace()[0].getLineNumber());
           }
         }
-               
-        System.out.println("Total query " + query_count);
+             
+        
+        
+        System.out.println("Total query " + query_count + " job count " + job_count + " job success " + job_success);
     }    
 }

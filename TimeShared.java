@@ -51,11 +51,13 @@ class TimeShared extends gridmonitor.AllocPolicy {
     IndexEntry indexentry;
     boolean isupdating;
     
+    boolean with_gridlet;
+    
     Double deferredupdate=Double.NaN;
     
     int node_to_node_latency;
     
-    
+     
     /**
      * Allocates a new TimeShared object
      * @param resourceName    the GridResource entity name that will contain
@@ -77,8 +79,8 @@ class TimeShared extends gridmonitor.AllocPolicy {
      * @pre entityName != null
      * @post $none
      */
-    TimeShared(String resourceName, String entityName,int gridmonitoradminid_,int nodeid_, ArrayList clocked_nodes) throws Exception {
-        super(resourceName, entityName,gridmonitoradminid_,nodeid_, clocked_nodes);
+    TimeShared(String resourceName, String entityName,int gridmonitoradminid_,int nodeid_, ArrayList clocked_nodes, boolean with_gridlet_) throws Exception {
+        super(resourceName, entityName,gridmonitoradminid_,nodeid_, clocked_nodes, with_gridlet_);
         // initialises local data structure
         this.gridletInExecList_ = new ResGridletList();
         this.gridletPausedList_ = new ResGridletList();
@@ -88,6 +90,7 @@ class TimeShared extends gridmonitor.AllocPolicy {
         int avg_hops = 1; 
         int latency_per_hop = 1; // Latency in micro seconds
         node_to_node_latency = avg_hops * latency_per_hop * 1;
+        this.with_gridlet = with_gridlet_;
         
         //System.out.println("TimeShared myid " + this.myId_);
     }
@@ -187,7 +190,13 @@ class TimeShared extends gridmonitor.AllocPolicy {
                         this.send(src,node_to_node_latency,GridMonitorTags.FIND_SUCCESSOR,new GridMonitorIO(this.myId_,src,(Object)indexkey));
                         
                         break;
-                    case GridMonitorTags.SUCCESSOR:
+                    case GridMonitorTags.SUCCESSOR:                      
+                        if (indexnode != -1) {
+                          indexentry=new IndexEntry(previousvalue,previousindexkey,this.nodeid);
+                          //System.out.println(update_count+":Sending remove request.. by "+this.nodeid+" "+HashCode.getString(previousindexkey));
+                          this.send(indexnode,node_to_node_latency,GridMonitorTags.REMOVE,new GridMonitorIO(this.myId_,indexnode,(Object)indexentry));           
+                        } 
+                        
                         src=(Integer)(((GridMonitorIO)ev.get_data()).getdata());
                         //System.out.println("Index node " + indexnode);
                         indexentry=new IndexEntry(currentvalue,indexkey,this.nodeid);
@@ -217,7 +226,7 @@ class TimeShared extends gridmonitor.AllocPolicy {
                         
                     case GridMonitorTags.REMOVED:
                         //System.out.println(update_count+":removed entry "+HashCode.getString(previousindexkey)+" for "+this.nodeid);
-                        this.send(this.gridmonitoradminid,node_to_node_latency,GridMonitorTags.GET_A_INDEX_NODE,new GridMonitorIO(this.myId_,this.gridmonitoradminid,null));
+                        //this.send(this.gridmonitoradminid,node_to_node_latency,GridMonitorTags.GET_A_INDEX_NODE,new GridMonitorIO(this.myId_,this.gridmonitoradminid,null));
                         
                         
                         break;                        
@@ -264,12 +273,12 @@ class TimeShared extends gridmonitor.AllocPolicy {
                                    
             //System.out.println("Current load = " + currentvalue + " index key = " + HashCode.getString(indexkey));
             
-            if (indexnode != -1) {
-                indexentry=new IndexEntry(previousvalue,previousindexkey,this.nodeid);
+            //if (indexnode != -1) {
+            //    indexentry=new IndexEntry(previousvalue,previousindexkey,this.nodeid);
                 //System.out.println(update_count+":Sending remove request.. by "+this.nodeid+" "+HashCode.getString(previousindexkey));
-                this.send(indexnode,node_to_node_latency,GridMonitorTags.REMOVE,new GridMonitorIO(this.myId_,indexnode,(Object)indexentry));           
-            } 
-            else 
+            //    this.send(indexnode,node_to_node_latency,GridMonitorTags.REMOVE,new GridMonitorIO(this.myId_,indexnode,(Object)indexentry));           
+            //} 
+            //else 
             {
                 this.send(this.gridmonitoradminid, node_to_node_latency, GridMonitorTags.GET_A_INDEX_NODE, 
                     new GridMonitorIO(this.myId_,this.gridmonitoradminid,null));                
@@ -320,7 +329,21 @@ class TimeShared extends gridmonitor.AllocPolicy {
         gridletInExecList_.add(rgl);   // add into the execution list
         //System.out.println("Gridlet execution list size is"+gridletInExecList_.size());
         double load = calculateTotalLoad(gridletInExecList_.size());
-        super.addTotalLoad(load);
+        
+        // HACK: to not to submit a gridlet
+        if (with_gridlet == true)
+        {
+          super.addTotalLoad(load);
+          
+          System.out.println("[TIME SHARED] Gridlet submitted at node " + this.nodeid + " at " + Sim_system.clock());
+        }
+        
+        if (load < .75 && ack == true)
+        {
+          submit_successful += 1;
+          System.out.println("Load while submitting gridlet " + load);
+        }
+        
         // sends back an ack if required
         if (ack == true)         
         {
@@ -330,7 +353,7 @@ class TimeShared extends gridmonitor.AllocPolicy {
             //    " from node " + this.nodeid + " with load " + load);
         }
         
-        // System.out.println("Gridlet submitted..."+gl.getGridletFinishedSoFar());
+        //System.out.println("Gridlet submitted..."+gl.getGridletFinishedSoFar());
         // forecast all Gridlets in the execution list
         
         forecastGridlet();
@@ -631,8 +654,11 @@ class TimeShared extends gridmonitor.AllocPolicy {
         int size = gridletInExecList_.size();
         double load = super.calculateTotalLoad(size);
         
-        
-        super.addTotalLoad(load);       // add the current resource load
+        // HACK 
+        if (with_gridlet == true)
+        {
+          super.addTotalLoad(load);       // add the current resource load
+        }
         
         // if no Gridlets in execution then ignore the rest
         if (size == 0) {
@@ -958,8 +984,6 @@ class TimeShared extends gridmonitor.AllocPolicy {
         }
         
         return rgl;
-    }
-    
-    
-    
+    }    
+        
 } // end class

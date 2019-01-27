@@ -20,8 +20,7 @@ public class GridMonitorIO
   public GridMonitorIO(int src_,int dest_,Object data_) {
     src=src_;
     dest=dest_;
-    data=data_;
-    cycle=
+    data=data_;    
   }
   public Object getdata()
   {

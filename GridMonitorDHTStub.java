@@ -317,6 +317,8 @@ public class GridMonitorDHTStub
 
     indexreq++;
     
+    System.out.println("Current Index size " + index.size());
+    
     while (i.hasNext())
     {
       entry = (IndexEntry)i.next();

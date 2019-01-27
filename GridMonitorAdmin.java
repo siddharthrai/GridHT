@@ -19,8 +19,10 @@ public class GridMonitorAdmin extends GridSimCore
   int nodeid;
   int bandwidth;
   int messagecount;
-  int INDEX_DHT_NODES    = 6;
-  int FEEDBACK_DHT_NODES = 6;
+  int INDEX_DHT_NODES    = 2;
+  int FEEDBACK_DHT_NODES = 1;
+  int last_dht_node;
+  int last_feedback_node;
   int count_nodes_system;
   int count_indexed_values;
 
@@ -56,6 +58,9 @@ public class GridMonitorAdmin extends GridSimCore
   {
     super(name);
 
+    last_dht_node = (INDEX_DHT_NODES * 2) - 1;
+    last_feedback_node = ((INDEX_DHT_NODES + FEEDBACK_DHT_NODES) * 2) - 1;
+    
     indexnodes    = new ArrayList();
     feedbacknodes = new ArrayList();
     brokerlist    = new ArrayList();
@@ -207,7 +212,8 @@ public class GridMonitorAdmin extends GridSimCore
           dest  = ((GridMonitorIO)ev_.get_data()).getdest();
           data  = ((GridMonitorIO)ev_.get_data()).getdata();
 
-          if (indexnodes.size() < INDEX_DHT_NODES) 
+          //if (indexnodes.size() < INDEX_DHT_NODES) 
+          if (src <= last_dht_node) 
           {
             indexnodes.add(((GridMonitorIO)ev_.get_data()).getsrc());
             
@@ -226,7 +232,8 @@ public class GridMonitorAdmin extends GridSimCore
           }
           else 
           {
-            if (feedbacknodes.size() < FEEDBACK_DHT_NODES) 
+            //if (feedbacknodes.size() < FEEDBACK_DHT_NODES) 
+            if (src <= last_feedback_node)  
             {
               feedbacknodes.add(((GridMonitorIO)ev_.get_data()).getsrc());
 
@@ -245,8 +252,16 @@ public class GridMonitorAdmin extends GridSimCore
             } 
             else 
             {
-              send(src,node_to_node_latency, GridMonitorTags.ROLE_RESOURCE, 
+              if(indexnodes.size() >= 1) 
+              {              
+                send(src,node_to_node_latency, GridMonitorTags.ROLE_RESOURCE, 
                   new GridMonitorIO(nodeid, src, (Object)indexnodes.get(0)));
+              }
+              else
+              {
+                send(src,node_to_node_latency, GridMonitorTags.ROLE_RESOURCE, 
+                  new GridMonitorIO(nodeid, src, null));
+              }
               
               System.out.println("Node " + src + " is resource node ");
             }

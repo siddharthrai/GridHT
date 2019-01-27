@@ -164,7 +164,7 @@ public class GridMonitorResource extends GridSimCore {
     //HashCode.compute(nodeid, hashkey);
     HashCode.computeConsistentHash(nodeid, hashkey);
       
-    System.out.println("Node hash key = " + hashkey + " for node " + nodeid + " node name " + name);
+    System.out.println("Node hash key = " + HashCode.getString(hashkey) + " for node " + nodeid + " node name " + name);
     
     dht = new GridMonitorDHTStub(this);
 
@@ -434,7 +434,7 @@ public class GridMonitorResource extends GridSimCore {
               {
                 if (ev.get_tag() == GridMonitorTags.INDEX)
                 {
-                  clockpulsegenerator.setWaitTime(nodeid, 3);
+                  clockpulsegenerator.setWaitTime(nodeid, 5);
                   
                   System.out.println("[RESOURCE WAIT]Setting wait time 100 at node " + this.nodeid);
                 }
@@ -512,7 +512,7 @@ public class GridMonitorResource extends GridSimCore {
    */
   void initAllocationPolicy(ArrayList clocked_nodes) {
     try {
-      policy_ = new gridmonitor.TimeShared(name, "TimeShared", gridmonitoradminid, nodeid, clocked_nodes);
+      policy_ = new gridmonitor.TimeShared(name, "TimeShared", gridmonitoradminid, nodeid, clocked_nodes, with_gridlet);
       policytype_ = ResourceCharacteristics.TIME_SHARED;
       policy_.init(resource_, resCalendar_, new Sim_port("output"));
     } catch (Exception e) {
@@ -601,8 +601,54 @@ public class GridMonitorResource extends GridSimCore {
         
         System.out.println("[DHT JOIN] node-id = " + this.nodeid + " " + dht.successorlist.size() + " " + dht.predecessor + " " + dht.successor);
         
+        int waiting_for_reply = 1;
+        
         this.send(predecessor, node_to_node_latency, GridMonitorTags.SET_SUCCESSOR, new GridMonitorIO(this.nodeid, predecessor, null));
+        
+        while (waiting_for_reply > 0)
+        {
+          this.getNextEvent(rply);
+          
+          while (rply.get_tag() == GridMonitorTags.CLOCK_PULSE)
+          {
+            this.getNextEvent(rply);
+          }
+          
+          if (rply.get_tag() == GridMonitorTags.SUCCESSOR_SET)
+          {
+            waiting_for_reply -= 1;
+          }
+          else
+          {
+            processEvent(rply);
+            System.out.println("[SET SUCCESSOR] Received reply " + rply.get_tag());
+          }
+        }
+         
         this.send(successor, node_to_node_latency, GridMonitorTags.SET_PREDECESSOR, new GridMonitorIO(this.nodeid, successor, null));
+      
+        waiting_for_reply = 1;
+        
+        while (waiting_for_reply > 0)
+        {
+          this.getNextEvent(rply);
+          
+          while (rply.get_tag() == GridMonitorTags.CLOCK_PULSE)
+          {
+            this.getNextEvent(rply);
+          }
+          
+          if (rply.get_tag() == GridMonitorTags.PREDECESSOR_SET)
+          {
+            waiting_for_reply -= 1;
+          }
+          else
+          {
+            processEvent(rply);
+          }
+        }
+        // TODO: Send to admin that join is over
+       
       } else {
         System.out.println("Reply out of order...." + rply.get_tag());
       }
@@ -837,7 +883,7 @@ public class GridMonitorResource extends GridSimCore {
               start = hashkey.clone();
               HashCode.incrememt(start);
               
-              System.out.println("[DHT JOIN] " + " joined DTH with " + start + " " + hashkey + " " + end);
+              System.out.println("[DHT JOIN] " + " joined DTH with " + HashCode.getString(start) + " " + HashCode.getString(hashkey) + " " + HashCode.getString(end));
               
               dht.successorlist.add(new SuccessorList(start, this.hashkey));
               rply = new JoiningMessage(successorlist, dht.predecessor, this.nodeid);
@@ -852,7 +898,7 @@ public class GridMonitorResource extends GridSimCore {
               for (i = 0; i < 20; end[i] = (byte) 0xff, i++);
               dht.successorlist.add(new SuccessorList(start, end));
 
-              System.out.println("[DHT JOIN] " + " joined DTH with " + start + " " + HashCode.getString(hashkey) + " " + end);
+              System.out.println("[DHT JOIN] " + " joined DTH with " + HashCode.getString(start) + " " + HashCode.getString(hashkey) + " " + HashCode.getString(end));
               
               rply = new JoiningMessage(successorlist, dht.predecessor, this.nodeid);
               this.send(src, node_to_node_latency, GridMonitorTags.JOINED, new GridMonitorIO(this.nodeid, src, (Object) rply));
@@ -867,6 +913,7 @@ public class GridMonitorResource extends GridSimCore {
             start = hashkey.clone();
             HashCode.incrememt(start);
             dht.successorlist.add(new SuccessorList(start, this.hashkey));
+            System.out.println("[DHT JOIN] " + " joined DTH with " + HashCode.getString(start) + " " + HashCode.getString(hashkey) + " " + HashCode.getString(end));
             rply = new JoiningMessage(successorlist, dht.predecessor, this.nodeid);
             this.send(src, node_to_node_latency, GridMonitorTags.JOINED, new GridMonitorIO(this.nodeid, src, (Object) rply));
           }
@@ -875,11 +922,17 @@ public class GridMonitorResource extends GridSimCore {
         case GridMonitorTags.SET_PREDECESSOR:
           src = ((GridMonitorIO) ev.get_data()).getsrc();
           dht.predecessor = src;
+          System.out.println("[DHT JOIN] Predecessor for " + this.nodeid + " set to " + src);
+          
+          this.send(src, node_to_node_latency, GridMonitorTags.PREDECESSOR_SET, new GridMonitorIO(this.nodeid, src, null));
           break;
 
         case GridMonitorTags.SET_SUCCESSOR:
           src = ((GridMonitorIO) ev.get_data()).getsrc();
           dht.successor = src;
+          System.out.println("[DHT JOIN] Successor for " + this.nodeid + " set to " + src);
+          
+          this.send(src, node_to_node_latency, GridMonitorTags.SUCCESSOR_SET, new GridMonitorIO(this.nodeid, src, null));
           break;
         /*
              case GridMonitorTags.A_INDEX_NODE:
@@ -964,7 +1017,7 @@ public class GridMonitorResource extends GridSimCore {
           }
 
           indexentry.getHashkey(hashkey);
-          //System.out.println("Removed "+HashCode.getString(hashkey)+" indexed by "+entry.getId());
+          System.out.println("[DHT STUB] Removed " + HashCode.getString(hashkey) + " from node " + this.nodeid);
           break;
 
         case GridMonitorTags.REMOVE_FEEDBACK:
@@ -988,8 +1041,8 @@ public class GridMonitorResource extends GridSimCore {
           dest  = ((GridMonitorIO) ev.get_data()).getdest();//message destination
           query = (RangeQuery) ((GridMonitorIO) ev.get_data()).getdata();//query
 
-          System.out.println("Range query received for " + query.getStart() + " " + 
-              query.getEnd() + " at " + clockpulsegenerator.getPulseCount());
+          System.out.println("Range query received at " + this.nodeid + " for " + HashCode.getString(query.getStart()) + " " + 
+              HashCode.getString(query.getEnd()) + " at " + clockpulsegenerator.getPulseCount());
           
           id = dht.get_successor(query.getStart());
 
@@ -1000,7 +1053,8 @@ public class GridMonitorResource extends GridSimCore {
             if (dht.containsid(query.getEnd()) == dht.containsid(query.getStart())) 
             {
               //entire range is contained by current node
-
+              System.out.println("Final node with full range found");
+              
               destinationid = (ArrayList) (dht.getIndex(query).clone());
               //System.out.println("Final node found.. source node id is "+src);
               this.send(src, node_to_node_latency, GridMonitorTags.KEY_RESOURCE, 
@@ -1009,7 +1063,6 @@ public class GridMonitorResource extends GridSimCore {
             else 
             {
               //only subquery is contained at this node
-
               destinationid = (ArrayList) (dht.getIndex(query).clone());
               //System.out.println("subquery node found.."+Sim_system.clock()+" at node "+this.nodeid+" index size is"+destinationid.size());
               this.send(src, node_to_node_latency, GridMonitorTags.MORE_RESOURCE, 
@@ -1024,8 +1077,7 @@ public class GridMonitorResource extends GridSimCore {
 
               this.send(dht.successor, node_to_node_latency, GridMonitorTags.KEY_LOOKUP, 
                   new GridMonitorIO(src, dht.successor, (Object) newquery));
-            }
-            
+            }            
           }          
           else 
           {
@@ -1356,7 +1408,7 @@ public class GridMonitorResource extends GridSimCore {
 
       if (pulse_ % localjobrate == 0) {
         localjob();
-        System.out.println("[RESOURCE] Local job submitted on node "+this.nodeid+" at "+Sim_system.clock());
+        //System.out.println("[RESOURCE] Local job submitted on node "+this.nodeid+" at "+Sim_system.clock());
       }
 
     } 
@@ -1390,9 +1442,9 @@ public class GridMonitorResource extends GridSimCore {
     
     if (with_gridlet == true)
     {
-      g1 = new Gridlet(0, joblength * 1.0, 300, 300);
+      g1 = new Gridlet(0, joblength * 120.0, 300, 300);
       this.policy_.gridletSubmit(g1, this.nodeid, false);
-      //System.out.println("[RESOURCE] Local job submitted on " + this.nodeid + " at " + Sim_system.clock());
+      System.out.println("[RESOURCE] Local job submitted on " + this.nodeid + " at " + Sim_system.clock());
     }
   }
 
@@ -1668,5 +1720,10 @@ public class GridMonitorResource extends GridSimCore {
   public void setClockPulseGenerator(ClockPulseGenerator clock_)
   {
     clockpulsegenerator = clock_;
+  }
+  
+  public long getSubmitted()
+  {
+    return policy_.getSubmitted();
   }
 }

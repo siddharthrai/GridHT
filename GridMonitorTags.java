@@ -71,6 +71,12 @@ public static final int BATCH_INDEXED=DHT+26;
 public static final int REMOVE_FEEDBACK=DHT+27;
 
 public static final int REMOVE_INDEX_ENTRY=DHT+28;
+
+public static final int SUCCESSOR_SET=DHT+29;
+public static final int PREDECESSOR_SET=DHT+30;
+
+public static final int FIND_SUCCESSOR_UPDATE_VALUE = DHT+31;
+
 ////////////////////////////////////////////////////////
 public static final int GET_LOAD=RESOURCE+1;
 public static final int LOAD=RESOURCE+2;

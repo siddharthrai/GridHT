@@ -287,7 +287,7 @@ public class GridMonitorBroker extends GridSimCore
         //System.out.println("delay for broker with node id "+this.nodeid+"is "+delay);
         
         size = -1;
-        queuejobcount = 10 - jobqueue.size();
+        queuejobcount = 512 - jobqueue.size();
 
         for (int i = 0 ; i < queuejobcount; i++)
         {
@@ -517,7 +517,7 @@ public class GridMonitorBroker extends GridSimCore
 
         query_in_progress = false;
         
-        if (resourceid.size() < 10)
+        if (resourceid.size() < 50)
         {
           //if (clockpulsegenerator.isRunning() == true)
           {
@@ -531,8 +531,8 @@ public class GridMonitorBroker extends GridSimCore
               last_queryid = last_queryid - 1;
             }
             
-            query = queryset[last_queryid];
-            //query = queryset[5];
+            //query = queryset[last_queryid];
+            query = queryset[5];
             //System.out.println("Range query " + last_queryid + " " + query.getStart() + " " + 
             //query.getEnd() + " " + HashCode.getString(query.getStart()) + " " + HashCode.getString(query.getEnd()));
             schedule(resourceid);
@@ -699,23 +699,26 @@ public class GridMonitorBroker extends GridSimCore
         currentlength = (double)(job.getSize()) * 120; 
         //currentlength = (double)(10) * 120; 
         //if ((job.getTime()) <= Sim_system.clock())
-        if (with_gridlet == true)
+        //if (with_gridlet == true)
         {
           jobqueue.remove(0);
-                    
-          gridlet1    = new Gridlet(i, currentlength * 1, file_size, output_size);
-          indexentry  = (IndexEntry)resourceid_.get(i);
-
-          src = indexentry.getId();
-
-          indexedload = indexentry.getLoad();
-
-          //System.out.println("Gridlet of length " + currentlength + " submitted to node " + src + " from node " + this.nodeid);
           
-          this.send(src, node_to_node_latency, 
-            GridSimTags.GRIDLET_SUBMIT, new GridMonitorIO(this.nodeid, src, gridlet1));
+    
+            gridlet1    = new Gridlet(i, currentlength, file_size, output_size);
+            indexentry  = (IndexEntry)resourceid_.get(i);
+
+            src = indexentry.getId();
+
+            indexedload = indexentry.getLoad();
+
+            //System.out.println("Gridlet of length " + currentlength + " submitted to node " + src + " from node " + this.nodeid);
+          
+            this.send(src, node_to_node_latency, 
+              GridSimTags.GRIDLET_SUBMIT, new GridMonitorIO(this.nodeid, src, gridlet1));
+
           
           job_scheduled = job_scheduled + 1;
+          
         /*          
           this.getNextEvent(ev);
           

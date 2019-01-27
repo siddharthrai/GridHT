@@ -71,6 +71,9 @@ public abstract class AllocPolicy extends GridSimCore
     /** This class entity ID */
     protected final int myId_;
 
+    /**/
+    protected boolean with_gridlet;
+    
     /** This GridResource name */
     protected final String resName_;
 
@@ -91,6 +94,8 @@ public abstract class AllocPolicy extends GridSimCore
     int indexnode;
     
     int node_to_node_latency;
+    
+    long submit_successful;
     
     ///////////////////// ABSTRACT METHODS /////////////////////////////
 
@@ -402,11 +407,15 @@ public abstract class AllocPolicy extends GridSimCore
      * @pre entityName != null
      * @post $none
      */
-    protected AllocPolicy(String resName, String entityName,int gridmonitoradminid_,int nodeid_, ArrayList clocked_nodes) throws Exception
+    protected AllocPolicy(String resName, String entityName,int gridmonitoradminid_,int nodeid_, ArrayList clocked_nodes, boolean with_gridlet_) throws Exception
     {
         super(resName + "_" + entityName);
 
+        with_gridlet = with_gridlet_;
+        
         myId_ = this.get_id();
+        
+        System.out.println("Alloc policy with gridlet set to " + with_gridlet);
         
         System.out.println("My id is: "+myId_);
         
@@ -448,11 +457,13 @@ public abstract class AllocPolicy extends GridSimCore
             //accTotalLoad_.add(load);
             if (accTotalLoad_.getLast() > 0.0)
             {
-              System.out.println("[ALLOC POLICY] Updated load " +  accTotalLoad_.getLast() + " at node " + this.nodeid);
+              System.out.println("[ALLOC POLICY] Updated load : last " +  accTotalLoad_.getLast() + " current " + load + " at node " + this.nodeid);
             }
             
-            this.send(this.myId_,node_to_node_latency,GridMonitorTags.UPDATE_INDEX,new GridMonitorIO(this.myId_,this.myId_,(Object)load));
-             //indexCurrentLoad();
+
+              this.send(this.myId_,node_to_node_latency,GridMonitorTags.UPDATE_INDEX,new GridMonitorIO(this.myId_,this.myId_,(Object)load));
+
+            //indexCurrentLoad();
         }
          //else
          {
@@ -467,8 +478,8 @@ public abstract class AllocPolicy extends GridSimCore
         double load=this.getTotalLoad().getLast();
         
         System.out.println("[ALLOC POLICY] Updating load " + load);
+
         this.send(this.myId_,node_to_node_latency,GridMonitorTags.UPDATE_INDEX,new GridMonitorIO(this.myId_,this.myId_,(Object)load));
-        
     }
 
     /**
@@ -555,10 +566,10 @@ public abstract class AllocPolicy extends GridSimCore
         double localLoad = resCalendar_.getCurrentLoad();
         //localLoad=0;
         
-        //if (size > 0)
-        //{
-        //  System.out.println("Current load is " +  val + " local load " + localLoad + " size " + size + " PE " + totalPE_ + " at node " + this.nodeid);
-        //}
+        if (size > 0)
+        {
+          System.out.println("Current load is " +  val + " local load " + localLoad + " size " + size + " PE " + totalPE_ + " at node " + this.nodeid);
+        }
         
         //System.out.println("calculating  total load with "+numGridletPerPE+" processing gridlet.");
         //double load = 1.0 - ( (1 - localLoad) / numGridletPerPE );
@@ -776,5 +787,8 @@ public abstract class AllocPolicy extends GridSimCore
         return true;
     }
          
-    
+    public long getSubmitted()
+    {
+      return submit_successful;
+    }
 } // end class
