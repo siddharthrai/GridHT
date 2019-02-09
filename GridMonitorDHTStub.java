@@ -148,13 +148,42 @@ public class GridMonitorDHTStub
    */
 
   public void addToIndex(Object entry)
-  {        
+  { 
+    boolean found;
+    int node_id;
+    IndexEntry next_entry;
+    
+    byte hashkey[] = new byte[20];
     ((IndexEntry)entry).setTimestamp(Sim_system.clock());
 
-    index.add(0, entry);
+    Iterator    i;
+    
+    i = index.iterator();
 
-    update_req++;
-
+    found = false;
+    
+    while(i.hasNext())
+    {
+      next_entry=(IndexEntry)i.next();
+      ((IndexEntry)next_entry).getHashkey(hashkey);
+      node_id = ((IndexEntry)next_entry).getId();
+      
+      if(((IndexEntry)entry).isMatch(hashkey) == true && node_id == ((IndexEntry)entry).getId())
+      {
+        found = true;
+        break;
+        //return destinationid;
+        //System.out.println("Found in index at " + resource.nodeid);
+      }
+    }
+    
+    if (found == false)
+    {
+      index.add(0, entry);
+    
+      update_req++;
+    }
+    
     if(index.size() > 20)
     {
       //System.out.println("***Index exceeded size at "+this.resource);

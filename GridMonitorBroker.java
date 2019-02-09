@@ -696,14 +696,16 @@ public class GridMonitorBroker extends GridSimCore
       {
         job = (GridJob)jobqueue.get(0);
         
-        currentlength = (double)(job.getSize()) * 120; 
+        currentlength = (double)(job.getSize()) * 120;
+        
         //currentlength = (double)(10) * 120; 
         //if ((job.getTime()) <= Sim_system.clock())
         //if (with_gridlet == true)
         {
           jobqueue.remove(0);
           
-    
+          //if (with_gridlet == true) 
+          {
             gridlet1    = new Gridlet(i, currentlength, file_size, output_size);
             indexentry  = (IndexEntry)resourceid_.get(i);
 
@@ -715,7 +717,7 @@ public class GridMonitorBroker extends GridSimCore
           
             this.send(src, node_to_node_latency, 
               GridSimTags.GRIDLET_SUBMIT, new GridMonitorIO(this.nodeid, src, gridlet1));
-
+          }    
           
           job_scheduled = job_scheduled + 1;
           

@@ -448,7 +448,7 @@ public abstract class AllocPolicy extends GridSimCore
      * @post $none
      */
     protected void addTotalLoad(double load) {
-        byte []indexkey=new byte[20];
+        byte [] indexkey = new byte[20];
         //HashCode.compute(load,indexkey);               
                                    
         //if(Double.compare(accTotalLoad_.getLast(),Double.NaN)==0) 

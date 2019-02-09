@@ -53,6 +53,7 @@ class TimeShared extends gridmonitor.AllocPolicy {
     
     boolean with_gridlet;
     
+    int update_received;
     Double deferredupdate=Double.NaN;
     
     int node_to_node_latency;
@@ -333,9 +334,20 @@ class TimeShared extends gridmonitor.AllocPolicy {
         // HACK: to not to submit a gridlet
         if (with_gridlet == true)
         {
-          super.addTotalLoad(load);
-          
+          super.addTotalLoad(load);          
           System.out.println("[TIME SHARED] Gridlet submitted at node " + this.nodeid + " at " + Sim_system.clock());
+        }
+        else if (load > 0.0)
+        {          
+          update_received += 1;
+          
+          if (update_received > 4)
+          {
+            indexentry=new IndexEntry(currentvalue, indexkey, this.nodeid);
+            System.out.println("At node " + this.myId_ + " indexing " + HashCode.getString(indexkey) + " value " + currentvalue + " at " + indexnode);
+            //this.send(indexnode, node_to_node_latency * this.myId_, GridMonitorTags.INDEX, new GridMonitorIO(this.myId_, indexnode, (Object)indexentry));
+            update_received = 0;
+          }
         }
         
         if (load < .75 && ack == true)
