@@ -346,14 +346,14 @@ public class GridMonitorDHTStub
 
     indexreq++;
     
-    System.out.println("Current Index size " + index.size());
+    //System.out.println("Current Index size " + index.size());
     
     while (i.hasNext())
     {
       entry = (IndexEntry)i.next();
       entry.getHashkey(hashkey);
 
-      //System.out.println(HashCode.getString(hashkey));
+      //System.out.println("Lookup for entry " + entry.getId() + " hash key " + HashCode.getString(hashkey));
       //System.out.println(entry.getId()+" "+entry.getLoad()+" "+entry.getTimestamp()+" ");
 
       if (query.contains(hashkey) == true)
@@ -364,16 +364,18 @@ public class GridMonitorDHTStub
     
     if (destinationid.size() != 0)
     {
+      //System.out.println("Found at node " + resource.nodeid);
       query_pass++;
     }
     else
     {
+      //System.out.println("Not found at node " + resource.nodeid); 
       query_fail++;
     }
     
-    System.out.println("Found in index at node " + resource.nodeid + " update =  " + 
-        update_req + " query = " + indexreq + " query pass = " + query_pass + 
-        " query fail = " + query_fail);
+    //System.out.println("Found in index at node " + resource.nodeid + " update =  " + 
+    //    update_req + " query = " + indexreq + " query pass = " + query_pass + 
+    //    " query fail = " + query_fail);
     
     //System.out.println("Found in index at node " + resource.nodeid + " entries =  " + destinationid.size() + " " + 
     //    HashCode.getString(query.getStart()) + " " + HashCode.getString(query.getEnd()));

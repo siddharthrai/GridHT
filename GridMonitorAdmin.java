@@ -51,6 +51,8 @@ public class GridMonitorAdmin extends GridSimCore
   
   int ping_count;
   
+  HashCode hashcode;
+  
   ClockPulseGenerator clockpulsegenerator;
 
   /** Creates a new instance of GridMonitorAdmin */
@@ -100,6 +102,8 @@ public class GridMonitorAdmin extends GridSimCore
     //clockpulsegenerator=new ClockPulseGenerator(this.nodeid);#
     
     clockpulsegenerator = null;
+    
+    hashcode = new HashCode();
     
     System.out.println("Administartor node is up now ! nodeid " + nodeid);
   }
@@ -220,12 +224,12 @@ public class GridMonitorAdmin extends GridSimCore
             if(indexnodes.size() == 1) 
             {
               send(src, node_to_node_latency, GridMonitorTags.ROLE_INDEX_DHT_NODE, 
-                  new GridMonitorIO(nodeid, src, null));
+                  new GridMonitorIO(nodeid, src, null, false));
             } 
             else 
             {
               send(src, node_to_node_latency, GridMonitorTags.ROLE_INDEX_DHT_NODE, 
-                  new GridMonitorIO(nodeid, src, (Object)indexnodes.get(0)));
+                  new GridMonitorIO(nodeid, src, (Object)indexnodes.get(0), false));
             }   
             
             System.out.println("Node " + src + " is index DHT node, total index node " + indexnodes.size());
@@ -240,12 +244,12 @@ public class GridMonitorAdmin extends GridSimCore
               if (feedbacknodes.size() == 1) 
               {
                 send(src,node_to_node_latency, GridMonitorTags.ROLE_FEEDBACK_ADMIN, 
-                    new GridMonitorIO(nodeid, src, null));
+                    new GridMonitorIO(nodeid, src, null, false));
               } 
               else 
               {
                 send(src, node_to_node_latency, GridMonitorTags.ROLE_FEEDBACK_DHT_NODE, 
-                    new GridMonitorIO(nodeid, src, (Object)feedbacknodes.get(0)));
+                    new GridMonitorIO(nodeid, src, (Object)feedbacknodes.get(0), false));
               }
               
               System.out.println("Node " + src + " is feedback DHT node, total feedback node " + feedbacknodes.size());
@@ -255,12 +259,12 @@ public class GridMonitorAdmin extends GridSimCore
               if(indexnodes.size() >= 1) 
               {              
                 send(src,node_to_node_latency, GridMonitorTags.ROLE_RESOURCE, 
-                  new GridMonitorIO(nodeid, src, (Object)indexnodes.get(0)));
+                  new GridMonitorIO(nodeid, src, (Object)indexnodes.get(0), false));
               }
               else
               {
                 send(src,node_to_node_latency, GridMonitorTags.ROLE_RESOURCE, 
-                  new GridMonitorIO(nodeid, src, null));
+                  new GridMonitorIO(nodeid, src, null, false));
               }
               
               System.out.println("Node " + src + " is resource node ");
@@ -355,12 +359,12 @@ public class GridMonitorAdmin extends GridSimCore
           brokerlist.add(data);
 
           this.send(src, node_to_node_latency, GridMonitorTags.BROKER_ADDED, 
-              new GridMonitorIO(nodeid, src, (Object)indexnodes.get(0)));
+              new GridMonitorIO(nodeid, src, (Object)indexnodes.get(0), false));
         } 
         else 
         {
           this.send(src, node_to_node_latency, GridMonitorTags.RETRY, 
-              new GridMonitorIO(nodeid, src, null));
+              new GridMonitorIO(nodeid, src, null, false));
           
           //System.out.println("Sent Broker RETRY to " + src);
         }
@@ -370,13 +374,13 @@ public class GridMonitorAdmin extends GridSimCore
       case GridMonitorTags.GET_A_INDEX_NODE:
         //System.out.println("Request for an index node from " + src + " at " + dest);
         this.send(src, node_to_node_latency, GridMonitorTags.A_INDEX_NODE, 
-            new GridMonitorIO(this.nodeid, src, (Object)indexnodes.get(0)));
+            new GridMonitorIO(this.nodeid, src, (Object)indexnodes.get(0), false));
         break;
 
       case GridMonitorTags.GET_A_FEEDBACK_NODE:
         //System.out.println("Request for an feedback node from " + src + " at " + dest);
         this.send(src, node_to_node_latency, GridMonitorTags.A_FEEDBACK_NODE, 
-            new GridMonitorIO(this.nodeid, src, (Object)feedbacknodes.get(0)));
+            new GridMonitorIO(this.nodeid, src, (Object)feedbacknodes.get(0), false));
         break;
 
       case GridMonitorTags.COUNT:
@@ -392,7 +396,7 @@ public class GridMonitorAdmin extends GridSimCore
           {
             dest = (Integer)(i.next());
 
-            this.send(dest, 0.0, GridMonitorTags.GET_INDEX_SIZE, new GridMonitorIO(this.nodeid, dest, null));
+            this.send(dest, 0.0, GridMonitorTags.GET_INDEX_SIZE, new GridMonitorIO(this.nodeid, dest, null, false));
           }
 
           //send memberlist to each group leader
@@ -405,11 +409,11 @@ public class GridMonitorAdmin extends GridSimCore
 
             //System.out.println("Leader is " + src);
 
-            this.send(src, node_to_node_latency, GridMonitorTags.GROUP, new GridMonitorIO(this.nodeid, src, currentgroup.getMember()));
+            this.send(src, node_to_node_latency, GridMonitorTags.GROUP, new GridMonitorIO(this.nodeid, src, currentgroup.getMember(), false));
           }
 
           src = (Integer)this.feedbacknodes.get(0);
-          this.send(src, node_to_node_latency, GridMonitorTags.START, new GridMonitorIO(this.nodeid, src, null));
+          this.send(src, node_to_node_latency, GridMonitorTags.START, new GridMonitorIO(this.nodeid, src, null, false));
 
           i = indexnodes.iterator();
 
@@ -433,7 +437,7 @@ public class GridMonitorAdmin extends GridSimCore
 
         //if(pingrequest)
         System.out.println("Received PING " + ((GridMonitorIO)ev_.get_data()).getdata() + " at " + clockpulsegenerator.getPulseCount());
-        this.send(src, 0.0, GridMonitorTags.PONG, new GridMonitorIO(this.nodeid, src, null));
+        this.send(src, 0.0, GridMonitorTags.PONG, new GridMonitorIO(this.nodeid, src, null, false));
     }
     
   }
@@ -454,7 +458,7 @@ public class GridMonitorAdmin extends GridSimCore
 
         tracingtraffic = true;
 
-        HashCode.computeConsistentHash(val, hashkey);
+        hashcode.computeConsistentHash(val, hashkey);
 
         reqtime = Sim_system.clock();
         // this.send(src,node_to_node_latency,GridMonitorTags.FIND_SUCCESSOR,new GridMonitorIO(this.nodeid,src,hashkey));
@@ -513,7 +517,7 @@ public class GridMonitorAdmin extends GridSimCore
   {     
     //System.out.println("Request to send PING to " + dest + " from " + nodeid);
     ping_count++;
-    send(dest, 0, GridMonitorTags.PING, new GridMonitorIO(nodeid, dest, ping_count));   
+    send(dest, 0, GridMonitorTags.PING, new GridMonitorIO(nodeid, dest, ping_count, false));   
   }
   
   public int getNodeId()

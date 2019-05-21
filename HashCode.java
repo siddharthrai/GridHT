@@ -19,56 +19,10 @@ import java.nio.charset.*;
 
 public class HashCode {
     
-    public static void compute(int id,byte[]hash)
+    byte hashkeyindex[][]=new byte[10000][];
+       
+    public HashCode()
     {
-         
-        Charset charset = Charset.forName("UTF-8");
-        CharsetEncoder encoder = charset.newEncoder();
-        CharsetDecoder decoder = charset.newDecoder();
-        
-        byte[]temp=new byte[20];
-        int i;
-        try{
-        String id_str=Integer.toString(id);
-        MessageDigest sha=MessageDigest.getInstance("SHA-1");
-        //sha.update(id_str.getBytes());
-        sha.update(id_str.getBytes());
-        temp=sha.digest();
-        String str1 = new String(temp);
-        //System.out.println("SHA-1 for value " + id + " " + id_str + " " + id_str.getBytes().toString() + " " + str1);
-        
-        for(i=0; i < str1.length(); hash[i] = str1.getBytes()[i], i++);
-        
-        //String str2 = new String(hash);
-        
-        //System.out.println("SHA-1 hash " + str2);
-        }
-        catch(Exception e){
-            System.out.println(e.getMessage());
-        }
-     }
-     public static void compute(double id,byte[]hash)
-    {
-        byte[]temp = new byte[20];
-        int i;
-        try
-        {
-          String id_str = Double.toString(id);
-          MessageDigest sha = MessageDigest.getInstance("SHA-1");
-          sha.update(id_str.getBytes());
-          temp = sha.digest();
-          for (i = 0; i < temp.length; hash[i] = temp[i], i++);
-        }
-        catch(Exception e){
-            System.out.println(e.getMessage());
-        }
-     }
-
-     
-     public static void computeConsistentHash(double id, byte[]hash)
-     {
-         byte hashkeyindex[][]=new byte[10000][];
-         
          int i;         
          
          KeyComparator comp=new KeyComparator();
@@ -82,15 +36,74 @@ public class HashCode {
              //HashCode.computeConsistentHash(i, hashkeyindex[i]);
          }
          
-         //Arrays.sort(hashkeyindex, comp);
+         // Sort to make range comparison possible
+         Arrays.sort(hashkeyindex, comp);
+    }
+    
+    public static void compute(int id,byte[]hash)
+    {       
+        Charset charset = Charset.forName("UTF-8");
+        CharsetEncoder encoder = charset.newEncoder();
+        CharsetDecoder decoder = charset.newDecoder();
+        
+        byte[]temp=new byte[20];
+        int i;
+        try{
+        String id_str=Integer.toString(id);
+        MessageDigest sha=MessageDigest.getInstance("SHA-1");
+        //sha.update(id_str.getBytes());
+        sha.update(id_str.getBytes());
+        temp=sha.digest();
+        String str1 = new String(temp);
+        
+        //System.out.println("Computing hash for id " + id_str );
+        
+        //System.out.println("SHA-1 for value " + id + " " + id_str + " " + id_str.getBytes().toString() + " " + str1);
+        
+        for(i=0; i < str1.length(); hash[i] = str1.getBytes()[i], i++);
+        
+        String str2 = new String(hash);
+        
+        //System.out.println("SHA-1 hash " + getString(hash) + " for " + id_str);
+        }
+        catch(Exception e){
+            System.out.println(e.getMessage());
+        }
+     }
+
+    public static void compute(double id, byte[]hash)
+    {
+        byte[]temp = new byte[20];
+        int i;
+        
+        try
+        {
+          String id_str = Double.toString(id);
+           
+          System.out.println("Computing double hash for id " + id_str);
+          
+          MessageDigest sha = MessageDigest.getInstance("SHA-1");
+          sha.update(id_str.getBytes());
+          temp = sha.digest();
+          for (i = 0; i < temp.length; hash[i] = temp[i], i++);
+        }
+        catch(Exception e){
+            System.out.println(e.getMessage());
+        }
+     }
+     
+     public void computeConsistentHash(double id, byte[]hash)
+     {   
+         if (id <= 1)
+              id = id * 100;
+        
+         //System.out.println("Getting hash for id " + id);
+         int i;
          
          for (i = 0; i < hash.length; i++)
-         {             
-            if (id <= 1)
-              id = id * 100;
-            
+         {            
              hash[i] = hashkeyindex[(int)Math.round(id)][i];
-         }        
+         }             
          
         /* for(i=0;i<11;i++)
          {
@@ -136,14 +149,14 @@ public class HashCode {
          String byte_str_byte,byte_str,hash_str=null;
          
          for(i=0;i<hashkey.length;i++)
-      {
+         {
           byte_str=Integer.toHexString(hashkey[i]);  
           //System.out.println(hash2[0]);
           
           byte_str_byte=(byte_str.length()>=2)?byte_str.substring(byte_str.length()-2):"0"+byte_str;
           
           hash_str=(hash_str!=null)?hash_str+byte_str_byte:byte_str_byte;
-      }
+         }
          //hashstring=hash_str;
          //System.out.println(hashstring);
          return hash_str;

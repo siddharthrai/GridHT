@@ -15,17 +15,21 @@ public class GridMonitorIO
 {
   private int src,dest;
   private Object data;
-    
+  private boolean do_update;
+  
   /** Creates a new instance of GridMonitorIO */
-  public GridMonitorIO(int src_,int dest_,Object data_) {
-    src=src_;
-    dest=dest_;
-    data=data_;    
+  public GridMonitorIO(int src_,int dest_,Object data_, boolean update_) {
+    src = src_;
+    dest = dest_;
+    data = data_;    
+    do_update = update_;
   }
+  
   public Object getdata()
   {
     return data;
   }
+  
   public int getsrc()
   {
     return src;
@@ -34,6 +38,11 @@ public class GridMonitorIO
   public int getdest()
   {
     return dest;
+  }
+  
+  public boolean doUpdate()
+  {
+    return do_update;
   }
 }
 

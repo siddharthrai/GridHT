@@ -36,7 +36,8 @@ public class GridMonitorBroker extends GridSimCore
   int    job_scheduled;
   int    reqsend,rplyreceived;
   double searchrange[];
-
+  int    node_count;
+  
   RangeQuery queryset[];
   RangeQuery query;
   boolean    query_in_progress;
@@ -48,6 +49,7 @@ public class GridMonitorBroker extends GridSimCore
   double beginat;
   
   boolean with_gridlet;
+  boolean with_grupd;
   
   int node_to_node_latency;
   
@@ -55,12 +57,25 @@ public class GridMonitorBroker extends GridSimCore
 
   boolean ready;
   
+  int update_group_size;
+  
+  List<TreeMap<Integer, Integer>> update_schedule_table;
+  
+  int next_update_table[];
+  int update_histogram[];
+  
+  List <List<Double>> pending_jobs_per_node;
+      
+  long last_job_schedule_cycle;
+  long last_job_update_cycle;
+  
   RandomAccessFile inputfile;
   RandomAccessFile timestamp;
   RandomAccessFile resultcount;
   RandomAccessFile result;
   RandomAccessFile querycost;
-
+  RandomAccessFile localload;
+  
   FileWriter out;
   FileWriter query_time;
   FileWriter job_count;
@@ -69,11 +84,15 @@ public class GridMonitorBroker extends GridSimCore
   
   int schedulecount;
 
+  HashCode hashcode;
+  
   /** Creates a new instance of GridMonitorBroker */
-  public GridMonitorBroker(String name_, int gridmonitoradminid_, int total_nodes, String inputfile_, ArrayList clocked_nodes, boolean with_gridlet_) throws Exception 
+  public GridMonitorBroker(String name_, int gridmonitoradminid_, int total_nodes, String inputfile_, ArrayList clocked_nodes, boolean with_gridlet_, boolean with_grupd_) throws Exception 
   {
     super(name_);
 
+    int i;
+    
     hashkey = new byte[20];
 
     gridmonitoradminid = gridmonitoradminid_;
@@ -81,6 +100,9 @@ public class GridMonitorBroker extends GridSimCore
     nodeid = this.get_id();
 
     with_gridlet = with_gridlet_;
+    with_grupd = with_grupd_;
+    
+    node_count = total_nodes;
     
     /*
     if (with_gridlet == true)
@@ -88,14 +110,55 @@ public class GridMonitorBroker extends GridSimCore
       System.out.println("Running with gridlet");
     }
     */
+    hashcode = new HashCode();
     
     clocked_nodes.add(nodeid);
+  
+    update_group_size = 4;
+    
+    update_schedule_table = new ArrayList<TreeMap<Integer, Integer>>();
+    
+    for (i = 0; i < total_nodes; i++)
+    {
+      update_schedule_table.add(new TreeMap<Integer, Integer>());
+    }
+    
+    next_update_table = new int[total_nodes];
+    
+    update_histogram = new int[total_nodes * 2 + 1];
+    
+    for (i = 0; i < total_nodes * 2 + 1; i++)
+    {    
+        update_histogram[i] = 0;
+    }
+    
+    for (i = 0; i < total_nodes; i++)
+    {    
+        next_update_table[i] = 1 + i * (update_group_size * 2);
+        
+        //System.out.println("Next update table for group " + i + " initialized to " + next_update_table[i]);
+        
+        //next_update_table[i] = -1;
+        //update_histogram[i] = 4;
+    }
+ 
+    localload = new RandomAccessFile("./inputdata/das2_fs0.dat", "r");
+    
+    pending_jobs_per_node = new ArrayList<List<Double>>();
+    
+    for (i = 0; i < total_nodes * 2 + 1; i++)
+    {         
+      pending_jobs_per_node.add(new ArrayList());
+    }
+  
+    last_job_schedule_cycle = 0;
+    last_job_update_cycle   = 0;
     
     //clockpulsegenerator = new ClockPulseGenerator(this.nodeid, 4);
     //clockpulsegenerator = clock_;
     
-    //HashCode.compute(nodeid, hashkey);
-    HashCode.computeConsistentHash(nodeid, hashkey);
+    //hashcode.compute(nodeid, hashkey);
+    hashcode.computeConsistentHash(nodeid, hashkey);
     
     reqsend       = 0;
     rplyreceived  = 0;
@@ -181,7 +244,7 @@ public class GridMonitorBroker extends GridSimCore
       do
       {
         this.send(gridmonitoradminid, node_to_node_latency, GridMonitorTags.ADD_BROKER, 
-            new GridMonitorIO(this.nodeid, this.gridmonitoradminid, (Object)this.nodeid));
+            new GridMonitorIO(this.nodeid, this.gridmonitoradminid, (Object)this.nodeid, false));
         
         //System.out.println("Waiting for Broker added ");
         
@@ -203,7 +266,7 @@ public class GridMonitorBroker extends GridSimCore
       isid = (Integer)(((GridMonitorIO)ev.get_data()).getdata());
 
       this.send(gridmonitoradminid, node_to_node_latency, GridMonitorTags.GET_A_FEEDBACK_NODE, 
-          new GridMonitorIO(this.nodeid, this.gridmonitoradminid, null));
+          new GridMonitorIO(this.nodeid, this.gridmonitoradminid, null, false));
 
       do
       {
@@ -229,49 +292,88 @@ public class GridMonitorBroker extends GridSimCore
         switch (i)
         {
           case 0:
-            HashCode.computeConsistentHash(searchrange[0],querystart);
-            HashCode.computeConsistentHash(searchrange[1],queryend);            
-            queryset[0] = new RangeQuery(querystart,queryend);                        
+            hashcode.computeConsistentHash(searchrange[0],querystart);
+            hashcode.computeConsistentHash(searchrange[1],queryend);            
+            queryset[0] = new RangeQuery(querystart,queryend);    
+            
+            System.out.println("Query " + i + " range " + searchrange[0] + " " + searchrange[1] + " " + hashcode.getString(queryset[i].getStart()) + " " + hashcode.getString(queryset[i].getEnd()));
             break;
 
           case 1:
-            HashCode.computeConsistentHash(searchrange[1],querystart);
-            HashCode.computeConsistentHash(searchrange[2],queryend);            
+            hashcode.computeConsistentHash(searchrange[1],querystart);
+            hashcode.computeConsistentHash(searchrange[2],queryend);            
             queryset[1] = new RangeQuery(querystart,queryend);
+            
+            System.out.println("Query " + i + " range " + searchrange[1] + " " + searchrange[2] + " " + hashcode.getString(queryset[i].getStart()) + " " + hashcode.getString(queryset[i].getEnd()));
             break;
 
           case 2:
-            HashCode.computeConsistentHash(searchrange[2],querystart);
-            HashCode.computeConsistentHash(searchrange[3],queryend);            
+            hashcode.computeConsistentHash(searchrange[2],querystart);
+            hashcode.computeConsistentHash(searchrange[3],queryend);            
             queryset[2] = new RangeQuery(querystart,queryend);
+            
+            System.out.println("Query " + i + " range " + searchrange[2] + " " + searchrange[3] + " " + hashcode.getString(queryset[i].getStart()) + " " + hashcode.getString(queryset[i].getEnd()));
             break;
 
           case 3:
-            HashCode.computeConsistentHash(searchrange[3],querystart);
-            HashCode.computeConsistentHash(searchrange[4],queryend);            
+            hashcode.computeConsistentHash(searchrange[3],querystart);
+            hashcode.computeConsistentHash(searchrange[4],queryend);            
             queryset[3] = new RangeQuery(querystart,queryend);
+            
+            System.out.println("Query " + i + " range " + searchrange[3] + " " + searchrange[4] + " " + hashcode.getString(queryset[i].getStart()) + " " + hashcode.getString(queryset[i].getEnd()));
             break;
 
           case 4:
-            HashCode.computeConsistentHash(searchrange[4],querystart);
-            HashCode.computeConsistentHash(searchrange[5],queryend);            
+            hashcode.computeConsistentHash(searchrange[4],querystart);
+            hashcode.computeConsistentHash(searchrange[5],queryend);            
             queryset[4] = new RangeQuery(querystart,queryend);
+            
+            System.out.println("Query " + i + " range " + searchrange[4] + " " + searchrange[5] + " " + hashcode.getString(queryset[i].getStart()) + " " + hashcode.getString(queryset[i].getEnd()));
             break;
 
           case 5:
-            HashCode.computeConsistentHash(searchrange[0],querystart);
-            HashCode.computeConsistentHash(searchrange[5],queryend);                        
-            queryset[5] = new RangeQuery(querystart,queryend);
+            hashcode.computeConsistentHash(searchrange[0],querystart);
+            hashcode.computeConsistentHash(searchrange[5],queryend);                        
+            queryset[5] = new RangeQuery(querystart, queryend);
+            
+            System.out.println("Query " + i + " range " + searchrange[0] + " " + searchrange[5] + " " + hashcode.getString(queryset[i].getStart()) + " " + hashcode.getString(queryset[i].getEnd()));
             break;
         }
         
-        System.out.println("Query "+i+" "+HashCode.getString(queryset[i].getStart())+" "+HashCode.getString(queryset[i].getEnd()));
+        //System.out.println("Query " + i + " range " + searchrange[0] + " " + searchrange[5] + " " + hashcode.getString(queryset[i].getStart()) + " " + hashcode.getString(queryset[i].getEnd()));
       }
 
       uptime = Sim_system.clock();
 
       do
       {
+        // Enqueue into job list
+        double job_len;
+        long duration;
+        
+        duration = ((long)Sim_system.clock()) - last_job_update_cycle;
+        
+        for (int node = 0; node < pending_jobs_per_node.size(); node++)
+        {
+          for (int job_index = 0; job_index < pending_jobs_per_node.get(node).size(); job_index++)
+          {
+            job_len = pending_jobs_per_node.get(node).get(job_index);
+                     
+            if (job_len <= duration)
+            {
+              pending_jobs_per_node.get(node).remove(job_index);
+              //System.out.println("[BROKER] Job finished at node " + node + " job count " + pending_jobs_per_node.get(node).size() + " length " + job_len + " " + Sim_system.clock());
+            }
+            else
+            {
+              pending_jobs_per_node.get(node).set(job_index, job_len - duration);
+              //System.out.println("[BROKER] At node " + node + ":" + job_index + " job count " + pending_jobs_per_node.get(node).size() + " length " + job_len + " duration " + duration + " clock " + Sim_system.clock());
+            }
+          }
+        }
+         
+        last_job_update_cycle = (long)Sim_system.clock();
+        
         //this.sim_process(1.0);
         //queryid = rand.nextInt(20);
         //queryid = 377;
@@ -280,7 +382,7 @@ public class GridMonitorBroker extends GridSimCore
         //currentqueryno = rand.nextInt(6);
         //query=queryset[currentqueryno];
         //query = queryset[5];
-        //System.out.println("query is "+HashCode.getString(query.getStart())+" "+HashCode.getString(query.getEnd()));
+        //System.out.println("query is "+hashcode.getString(query.getStart())+" "+hashcode.getString(query.getEnd()));
 
         delay = GridSimRandom.real(60,.9,.9,rand.nextDouble());
 
@@ -321,11 +423,51 @@ public class GridMonitorBroker extends GridSimCore
         cost = 0;
         
         //System.out.println("Range query " + last_queryid + " " + query.getStart() + " " + 
-        //    query.getEnd() + " " + HashCode.getString(query.getStart()) + " " + HashCode.getString(query.getEnd()));
+        //    query.getEnd() + " " + hashcode.getString(query.getStart()) + " " + hashcode.getString(query.getEnd()));
             
         ev = new Sim_event();
         this.getNextEvent(ev);
                 
+        
+        if ((long)Sim_system.clock() - last_job_schedule_cycle >= 4000)
+        {
+               
+          if (ev.get_tag() == GridMonitorTags.CLOCK_PULSE)
+          {    
+            // Update predicted job count 
+            double joblength = -1.0;
+          
+            // Process current jobs
+          
+            for (int i = 0 ; i < 4; i++)
+            {
+              do 
+              {
+                try 
+                {
+                  line = localload.readLine();
+                  joblength = Double.parseDouble(line);
+                }
+                catch (EOFException e) 
+                {
+                  localload.seek(0);
+                  joblength = -1.0;
+                }
+              }while (joblength == -1.0);
+            
+              // Enqueue into job list
+              for (int node = 0; node < pending_jobs_per_node.size(); node++)
+              {
+                pending_jobs_per_node.get(node).add((120 * joblength));
+              
+                //System.out.println("[BROKER] Pending jobs = " + pending_jobs_per_node.get(node).size() + " at node " + node + " current job size " + 120 * joblength);
+              }
+            }
+          }
+          
+          last_job_schedule_cycle = (long)Sim_system.clock();
+        }
+        
         if (ready == true)
         {
           //System.out.println("Going to poll for events with pending events " + pending_event_list.size());
@@ -464,7 +606,7 @@ public class GridMonitorBroker extends GridSimCore
             }
           }
 
-          System.out.println("Found " + tempres.size() + " more resources");
+          //System.out.println("Found " + tempres.size() + " more resources");
           }
           
           /*
@@ -505,10 +647,10 @@ public class GridMonitorBroker extends GridSimCore
         
         total_query_time = total_query_time + (clockpulsegenerator.getPulseCount() - querytime);
         
-        System.out.println("Query time one hop at node " + src + " = " + (clockpulsegenerator.getPulseCount() - querytime) + 
-            " " + clockpulsegenerator.getPulseCount());
+        //System.out.println("Query time one hop at node " + src + " = " + (clockpulsegenerator.getPulseCount() - querytime) + 
+        //    " " + clockpulsegenerator.getPulseCount());
         
-        System.out.println("Found " + tempres.size() + " resources");
+        //System.out.println("Found " + tempres.size() + " resources");
         
         //store dht query cost
         querycost.writeBytes(cost + "\n");
@@ -534,7 +676,7 @@ public class GridMonitorBroker extends GridSimCore
             //query = queryset[last_queryid];
             query = queryset[5];
             //System.out.println("Range query " + last_queryid + " " + query.getStart() + " " + 
-            //query.getEnd() + " " + HashCode.getString(query.getStart()) + " " + HashCode.getString(query.getEnd()));
+            //query.getEnd() + " " + hashcode.getString(query.getStart()) + " " + hashcode.getString(query.getEnd()));
             schedule(resourceid);
             this.indexQuery();
           }
@@ -573,8 +715,8 @@ public class GridMonitorBroker extends GridSimCore
         break;
         
       case GridSimTags.GRIDLET_SUBMIT_ACK:
-          System.out.println("[BROKER] Gridlet submit ack received");
-          System.out.println("[BROKER] Received event post gridlet submission " + ev_.get_tag());
+          //System.out.println("[BROKER] Gridlet submit ack received");
+          //System.out.println("[BROKER] Received event post gridlet submission " + ev_.get_tag());
           
           load      = (Double)((GridMonitorIO)ev_.get_data()).getdata();                                              
           resource  = (Integer)((GridMonitorIO)ev_.get_data()).getsrc();                        
@@ -588,7 +730,7 @@ public class GridMonitorBroker extends GridSimCore
             System.out.println("[BROKER] Random event received");
           }
           
-          //HashCode.computeConsistentHash(load, temphashkey);
+          //hashcode.computeConsistentHash(load, temphashkey);
 
           //indexentry = new IndexEntry(load, temphashkey, resource);
 
@@ -676,8 +818,70 @@ public class GridMonitorBroker extends GridSimCore
 
     try
     {
-      //Collections.shuffle(resourceid_);    
-
+      // Collections.shuffle(resourceid_);   
+      // TODO: Divide resource into groups.             
+      int next_nodeid;
+      int group_id;
+      int update_next_node[] = new int[node_count];
+           
+      //System.out.println("Nodes " + node_count + " scheduling");
+       
+      for (i = 0; i < node_count; i++)
+      {
+        update_schedule_table.get(i).clear();
+        update_next_node[i] = -1;
+      }
+          
+      for (i = 0; i < resourceid_.size(); i++)
+      {       
+        indexentry  = (IndexEntry)resourceid_.get(i);        
+        next_nodeid = indexentry.getId();
+        
+        group_id = next_nodeid / (2 * update_group_size);
+        
+        update_schedule_table.get(group_id).put(next_nodeid, 1);        
+      }
+       
+      for (i = 0; i < node_count; i++)
+      {
+        if (update_schedule_table.get(i).size() > 0)
+        {
+          update_next_node[i] = next_update_table[i] + 2;
+        
+          if (update_next_node[i] >= (i + 1) * (update_group_size * 2))
+          {
+            update_next_node[i] = 1 + (i * (update_group_size * 2));
+          }
+        
+          //System.out.println("Updating node = " + update_next_node[i] + " for group " + i + " current update table value " + next_update_table[i]);
+        }
+      }
+      
+      /*
+      for (i = 0; i < node_count; i++)
+      {
+        update_next_node[i] = -1;
+        
+        int e_size = update_schedule_table.get(i).size();
+        
+        for (int e_i = 0; e_i < e_size; e_i++)
+        {
+          int first_key = (int)(update_schedule_table.get(i).firstKey());
+          
+          if (first_key > next_update_table[i])
+          {            
+            update_next_node[i] = first_key;
+            
+            System.out.println("Updating node = " + first_key + " for group " + i);
+            
+            break;
+          }
+          
+          update_schedule_table.get(i).remove(first_key);
+        }
+      }
+      */
+      
       IndexedValueComparator comp = new IndexedValueComparator();        
 
       //Collections.sort(resourceid_, comp);
@@ -687,13 +891,15 @@ public class GridMonitorBroker extends GridSimCore
 
       //out.write("Schedule number :"+schedulecount+"\n");
       schedulecount++;
+      
       resultcount.writeBytes(Integer.toString(resourceid_.size())+"\n");
       
-      System.out.println("Number of resources obtained " + resourceid_.size() + " pending jobs " + jobqueue.size());
+      //System.out.println("Number of resources obtained " + resourceid_.size() + " pending jobs " + jobqueue.size());
 
       // 200 is total resource count
-      for (i = 0; i < resourceid_.size() && i < 200 && jobqueue.size() > 0; i++)
-      {
+      //for (i = 0; i < resourceid_.size() && i < 200 && jobqueue.size() > 0; i++)
+      for (i = 0; i < resourceid_.size() && jobqueue.size() > 0; i++)
+      {       
         job = (GridJob)jobqueue.get(0);
         
         currentlength = (double)(job.getSize()) * 120;
@@ -711,12 +917,55 @@ public class GridMonitorBroker extends GridSimCore
 
             src = indexentry.getId();
 
+            //System.out.println("Next resource id " + src);
+            
             indexedload = indexentry.getLoad();
 
             //System.out.println("Gridlet of length " + currentlength + " submitted to node " + src + " from node " + this.nodeid);
-          
-            this.send(src, node_to_node_latency, 
-              GridSimTags.GRIDLET_SUBMIT, new GridMonitorIO(this.nodeid, src, gridlet1));
+            
+            //if (src == update_next_node[src / (update_group_size * 2)])
+            //if (pending_jobs_per_node.get(src).size() < 32)
+            {
+              //if (update_histogram[src] == 0)
+              if (with_grupd)
+              {
+                if (pending_jobs_per_node.get(src).size() > 32 && update_histogram[src] == 0)
+                {
+                //System.out.println("Sending update for group " + (src / (update_group_size * 2)) + " " + update_next_node[src / (update_group_size * 2)] + " size = " + update_schedule_table.get((src / (update_group_size * 2))).size());
+              
+                //System.out.println("Current node " + src + " next update node " + update_schedule_table.get((src / (update_group_size * 2))).firstKey() + " " + next_update_table[(src / (update_group_size * 2))]);
+              
+                  this.send(src, node_to_node_latency, 
+                  GridSimTags.GRIDLET_SUBMIT, new GridMonitorIO(this.nodeid, src, gridlet1, true));
+              
+                  update_histogram[src] = 32;
+                }            
+                else
+                {            
+                  this.send(src, node_to_node_latency, 
+                    GridSimTags.GRIDLET_SUBMIT, new GridMonitorIO(this.nodeid, src, gridlet1, false));
+              
+                  if (update_histogram[src] > 0)
+                  {
+                    update_histogram[src]  -= 1;
+                  }
+                }
+              }
+              else
+              {
+                this.send(src, node_to_node_latency, 
+                  GridSimTags.GRIDLET_SUBMIT, new GridMonitorIO(this.nodeid, src, gridlet1, false));
+              }
+            }
+            
+            pending_jobs_per_node.get(src).add(currentlength);
+            
+            /*
+            if (pending_jobs_per_node.get(src).size() >= 16)
+            {
+              System.out.println("[BROKER] Sending to overloaded machine ");
+            }
+            */
           }    
           
           job_scheduled = job_scheduled + 1;
@@ -752,7 +1001,7 @@ public class GridMonitorBroker extends GridSimCore
             System.out.println("Random event received");
           }
           
-          HashCode.computeConsistentHash(load, temphashkey);
+          hashcode.computeConsistentHash(load, temphashkey);
 
           indexentry = new IndexEntry(load, temphashkey, resource);
 
@@ -768,14 +1017,29 @@ public class GridMonitorBroker extends GridSimCore
         }
       }
 
-      System.out.println("Jobs left in the queue " + jobqueue.size());
+      //System.out.println("Jobs left in the queue " + jobqueue.size());
       
       for (i = 0; i < resourceid_.size(); i++)
       {
         indexentry = (IndexEntry)resourceid_.get(i);
         result.writeBytes(Double.toString(Sim_system.clock()) + " " + Double.toString(indexentry.getLoad()) + "\n");            
       }
-
+      
+      for (i = 0; i < node_count; i++)
+      {
+        if (update_next_node[i] != -1)
+        {
+          if (update_next_node[i] != ((i + 1) * update_group_size * 2) - 1)
+          {
+            next_update_table[i] = update_next_node[i];
+          }
+          else
+          {
+            next_update_table[i] = 1 + i * (update_group_size * 2);
+          }
+        }
+      }
+      
       //out.write("_______________________________________________________\n");
       timestamp.writeBytes(Double.toString(Sim_system.clock()) + "\n");
     }
@@ -805,7 +1069,7 @@ public class GridMonitorBroker extends GridSimCore
 
     try
     {
-    super.send(this.feedbacknodeid, node_to_node_latency, GridMonitorTags.FIND_SUCCESSOR, new GridMonitorIO(this.nodeid, this.feedbacknodeid, hashkey));
+    super.send(this.feedbacknodeid, node_to_node_latency, GridMonitorTags.FIND_SUCCESSOR, new GridMonitorIO(this.nodeid, this.feedbacknodeid, hashkey, false));
 
     this.getNextEvent(ev);
 
@@ -817,7 +1081,7 @@ public class GridMonitorBroker extends GridSimCore
     successor = ((GridMonitorIO)ev.get_data()).getsrc();
     feedbackrequest = new FeedbackRequest(resource, successor, indexentry_);
 
-    super.send(this.feedbacknodeid, node_to_node_latency, GridMonitorTags.INDEX_FEEDBACK, new GridMonitorIO(this.nodeid, this.feedbacknodeid, feedbackrequest));
+    super.send(this.feedbacknodeid, node_to_node_latency, GridMonitorTags.INDEX_FEEDBACK, new GridMonitorIO(this.nodeid, this.feedbacknodeid, feedbackrequest, false));
     }
     catch (Exception e)
     {
@@ -841,12 +1105,12 @@ public class GridMonitorBroker extends GridSimCore
       
       query_in_progress = true;
     
-      System.out.println("Range query sent " + query_count + " " + index_query_calls + " " + 
-          last_queryid + " at " + clockpulsegenerator.getPulseCount()+ " " + Sim_system.clock() + 
-          " " + query.getStart() + " " + query.getEnd() + " " + HashCode.getString(query.getStart()) + " " + 
-          HashCode.getString(query.getEnd()));
+      //System.out.println("Range query sent " + query_count + " " + index_query_calls + " " + 
+      //    last_queryid + " at " + clockpulsegenerator.getPulseCount()+ " " + Sim_system.clock() + 
+      //    " " + query.getStart() + " " + query.getEnd() + " " + hashcode.getString(query.getStart()) + " " + 
+      //    hashcode.getString(query.getEnd()));
            
-      this.send(this.isid, node_to_node_latency, GridMonitorTags.KEY_LOOKUP, new GridMonitorIO(this.nodeid, this.isid, (Object)query));
+      this.send(this.isid, node_to_node_latency, GridMonitorTags.KEY_LOOKUP, new GridMonitorIO(this.nodeid, this.isid, (Object)query, false));
       querytime = clockpulsegenerator.getPulseCount();
     }
   }

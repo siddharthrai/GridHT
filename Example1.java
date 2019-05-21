@@ -33,11 +33,12 @@ public class Example1 {
         double query_time;
         int job_count;
         long job_success;
+        long drop_count;
         
         boolean with_gridlet;
+        boolean with_grupd;
         
         ArrayList clocked_nodes;
-
         
         clocked_nodes = new ArrayList();
                
@@ -45,6 +46,7 @@ public class Example1 {
         FileWriter query_count_trace;
         FileWriter query_time_trace;
         FileWriter job_count_trace;
+        FileWriter dropped_count_trace;
         
         long time, size;
         
@@ -55,8 +57,10 @@ public class Example1 {
         query_count = 0;
         job_count   = 0;
         job_success = 0;
+        drop_count  = 0;
         
         with_gridlet = false;
+        with_grupd = false;
         
         //for (int itr = 0; itr < 2; itr++)
         {
@@ -76,7 +80,33 @@ public class Example1 {
          //job=new RandomAccessFile("./inputdata/das2_arrival_abs.dat","rw");
          //line=job.readLine();
          
-         if (args.length > 1)
+         if (args.length == 2)
+         {
+           System.out.println(args[0]);
+           String gl = new String("with_gridlet");
+           
+           if (gl.equals(args[0]) == true)
+           {
+             with_gridlet = true;
+           }          
+           
+           gl = new String("grupd");
+           
+           if (gl.equals(args[0]) == true)
+           {
+             with_grupd = true;
+           }   
+           
+           nodes = Integer.valueOf(args[1]);
+           
+           System.out.println("Nodes set to " + nodes);
+           
+           query_count_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_query_count" + "_" + args[0] + "_" + args[1] + ".csv", true);
+           query_time_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_query_time" + "_" + args[0] + "_" + args[1] + ".csv", true);
+           job_count_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_job_count" + "_" + args[0] + "_" + args[1] + ".csv", true);
+           dropped_count_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_dropped_count" + "_" + args[0] + "_" + args[1] + ".csv", true);
+         }  
+         else if (args.length == 3)
          {
            System.out.println(args[0]);
            String gl = new String("with_gridlet");
@@ -93,19 +123,25 @@ public class Example1 {
            query_count_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_query_count" + "_" + args[0] + "_" + args[1] + ".csv", true);
            query_time_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_query_time" + "_" + args[0] + "_" + args[1] + ".csv", true);
            job_count_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_job_count" + "_" + args[0] + "_" + args[1] + ".csv", true);
-         }  
+           dropped_count_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_dropped_count" + "_" + args[0] + "_" + args[1] + ".csv", true);
+         }
          else
          {
            nodes = Integer.valueOf(args[0]);
          
            System.out.println("Nodes set to " + nodes);
            
-           query_count_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_query_count" + "_without_gridlet_" + args[0] + ".csv", true);
+           query_count_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_query_count" + "_without_" + args[0] + ".csv", true);
            
-           query_time_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_query_time" + "_without_gridlet_" + args[0] + ".csv", true);
+           query_time_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_query_time" + "_without_" + args[0] + ".csv", true);
            
-           job_count_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_job_count" + "_without_gridlet_" + args[0] + ".csv", true);
+           job_count_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_job_count" + "_without_" + args[0] + ".csv", true);
+           
+           dropped_count_trace = new FileWriter("./trace/"+GridMonitorTags.file+"/"+GridMonitorTags.file+"_dropped_count" + "_without_" + args[0] + ".csv", true);
          }
+         
+         System.out.println("With gridlet set to " + with_gridlet + " with grupd set to " + with_grupd);
+         
         // parts=line.split(" ");
         //System.out.println(parts[0]+":"+parts[1]);
       /*
@@ -196,14 +232,14 @@ public class Example1 {
             
             for (i = 0; i < nodes; i++)
             {
-                res[i] = new GridMonitorResource("res" + i, gm.getAdminId(), null, clocked_nodes, with_gridlet);
+                res[i] = new GridMonitorResource("res" + i, gm.getAdminId(), null, clocked_nodes, with_gridlet, with_grupd);
                 System.out.println("Finished instantiating res " + i);
                 //clocked_nodes.add(res[i].getNodeId());
             }
             
             for (i = 0; i < 1; i++)
             {
-                broker[i] = new GridMonitorBroker("broker" + i, gm.getAdminId(), nodes, "das2_fs" + i + ".dat", clocked_nodes, with_gridlet);
+                broker[i] = new GridMonitorBroker("broker" + i, gm.getAdminId(), nodes, "das2_fs" + i + ".dat", clocked_nodes, with_gridlet, with_grupd);
                 //clocked_nodes.add(broker[i].getNodeId());
             }
             
@@ -230,12 +266,19 @@ public class Example1 {
             query_count = broker[0].getQueryCount();
             query_time  = broker[0].getQueryTime();
             job_count   = broker[0].getJobCount();
+           
             
             for (i = 0; i < nodes; i++)
             {
                 job_success = job_success + res[i].getSubmitted();
             }
             
+            
+            for (i = 0; i < nodes; i++)
+            {
+                drop_count = drop_count + res[i].getDropped();
+            }
+              
             gm.finish();            
             gm = null;
             
@@ -252,10 +295,12 @@ public class Example1 {
             query_count_trace.write("Queries " + query_count + "\n");
             query_time_trace.write("Query-Time " + query_time + "\n");
             job_count_trace.write("Jobs " + job_count + "\n");
+            dropped_count_trace.write("Dropped " + drop_count + "\n");
             
             query_count_trace.close();
             query_time_trace.close();
             job_count_trace.close();
+            dropped_count_trace.close();
           }
           catch(Exception e)
           {   
