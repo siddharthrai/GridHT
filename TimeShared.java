@@ -212,20 +212,18 @@ class TimeShared extends gridmonitor.AllocPolicy {
                         break;
                     case GridMonitorTags.SUCCESSOR:                      
                         
-                       if (indexnode != -1) {
+                      if (indexnode != -1) {
                           indexentry=new IndexEntry(previousvalue,previousindexkey,this.nodeid);
                           //System.out.println(update_count+":Sending remove request.. by "+this.nodeid+" "+hashcode.getString(previousindexkey));
                           this.send(indexnode,node_to_node_latency,GridMonitorTags.REMOVE,new GridMonitorIO(this.myId_,indexnode,(Object)indexentry, false));           
                         } 
-                        
-                        /*
+                                              
                         src=(Integer)(((GridMonitorIO)ev.get_data()).getdata());
                         
                         System.out.println("[TIME SHARED INDEX NODE]Index node " + indexnode);
                         
                         indexentry=new IndexEntry(currentvalue,indexkey,this.nodeid);
                         this.send(src,node_to_node_latency,GridMonitorTags.INDEX,new GridMonitorIO(this.myId_,src,(Object)indexentry, false));
-                        */
                         
                         /*
                         if (currentvalue > 0.0)
@@ -301,12 +299,12 @@ class TimeShared extends gridmonitor.AllocPolicy {
             System.out.println("Starting update for new load");
             //System.out.println("Current load = " + currentvalue + " index key = " + hashcode.getString(indexkey));
             
-            if (indexnode != -1) {
+            /*if (indexnode != -1) {
                 indexentry=new IndexEntry(previousvalue,previousindexkey,this.nodeid);
                 //System.out.println(update_count+":Sending remove request.. by "+this.nodeid+" "+hashcode.getString(previousindexkey));
-                this.send(indexnode,node_to_node_latency,GridMonitorTags.REMOVE,new GridMonitorIO(this.myId_,indexnode,(Object)indexentry));           
+                this.send(indexnode,node_to_node_latency,GridMonitorTags.REMOVE,new GridMonitorIO(this.myId_,indexnode,(Object)indexentry, false));           
             } 
-            else 
+            else*/ 
             {
                 this.send(this.gridmonitoradminid, node_to_node_latency, GridMonitorTags.GET_A_INDEX_NODE, 
                     new GridMonitorIO(this.myId_,this.gridmonitoradminid,null, false));                
@@ -396,7 +394,7 @@ class TimeShared extends gridmonitor.AllocPolicy {
           super.addTotalLoad(load, false);          
           
           local_update_send += 1;
-          System.out.println("Total update send " + local_update_send);
+          //System.out.println("Total update send " + local_update_send);
           //System.out.println("[TIME SHARED] Gridlet submitted at node " + this.nodeid + " at " + Sim_system.clock());
         } 
         else

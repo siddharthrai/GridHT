@@ -423,46 +423,56 @@ public class GridMonitorResource extends GridSimCore {
         }
         */
         
-        if (ready == true)
+        if (ready == true || ready == false)
         {
           //System.out.println("Going to poll for events with pending events " + pending_event_list.size());
           int processed = 0;
-          while (processed < 8 && pending_event_list.size() > 0)
+          while (processed < 128 && pending_event_list.size() > 0)
           //while (processed < 500 && pending_event_list.size() > 0)
           //while (pending_event_list.size() > 0)
           {
             if (pending_event_list.size() > 0)
             {
-              ev = (Sim_event)pending_event_list.remove(0);
-      
-              System.out.println("[PROCESSING] Processing msg " + ev.get_tag() + " at node " + this.nodeid);
-              waiting = false;
+              ev  = (Sim_event)pending_event_list.remove(0);
+              src = (Integer)(((GridMonitorIO)ev.get_data()).getdata());
+                
+              if (ready == true || (ready == false && src != 129))
+              {
+                System.out.println("[PROCESSING] Processing msg " + ev.get_tag() + " at node " + this.nodeid);
+                waiting = false;
             
-              processEvent(ev);
+                processEvent(ev);
               
               //if (ready == true)
-              {
-                if (ev.get_tag() == GridMonitorTags.INDEX)
                 {
-                  clockpulsegenerator.setWaitTime(nodeid, 15);
+                  if (ev.get_tag() == GridMonitorTags.INDEX)
+                  {
+                    clockpulsegenerator.setWaitTime(nodeid, 5);
                   
-                  System.out.println("[RESOURCE WAIT]Setting wait time 15 at node " + this.nodeid);
+                    System.out.println("[RESOURCE WAIT]Setting wait time 15 at node " + this.nodeid);
                   
-                  //break;
+                    //break;
+                  }
+                  else
+                  {
+                    System.out.println("[RESOURCE PROCESS]Setting wait time 3 at node " + this.nodeid);
+                    clockpulsegenerator.setWaitTime(nodeid, 0);
+                  }
                 }
-                else
-                {
-                  System.out.println("[RESOURCE PROCESS]Setting wait time 3 at node " + this.nodeid);
-                  clockpulsegenerator.setWaitTime(nodeid, 0);
-                }
-              }  
-              //System.out.println("Processed " + ev.get_tag() + " at node " + this.nodeid);
+                
+                //System.out.println("Processed " + ev.get_tag() + " at node " + this.nodeid);
             
-              ready = false;
+                ready = false;
             
-              ev = null;
+                ev = null;
               
-              processed = processed + 1;
+                processed = processed + 1;
+              }
+              else
+              {
+                System.out.println("Received event from " + src);
+                //pending_event_list.add(0, ev);
+              }
             }
           }
         }

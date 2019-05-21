@@ -67,8 +67,7 @@ public class ClockPulseGenerator extends GridSimCore
             //this.sleep(100);
             
             // Pause the entity for one clock to generate next clock pulse
-            this.sim_pause(latency);
-                     
+            this.sim_pause(latency);                    
             
             //if(pulsecount%2==0)
             for (int node = 0; node < clocked_nodes.size(); node++)
