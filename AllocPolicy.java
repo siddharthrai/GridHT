@@ -87,7 +87,7 @@ public abstract class AllocPolicy extends GridSimCore
 
     // for statistical purposes to determine the load of this scheduler
     private gridmonitor.Accumulator accTotalLoad_;
-    private boolean endSimulation_;  // denotes the end of simulation
+    boolean endSimulation_;  // denotes the end of simulation
     private final int ARRAY_SIZE = 2;  // [0] = gridlet id and [1] = result
 
     int gridmonitoradminid;
@@ -465,7 +465,7 @@ public abstract class AllocPolicy extends GridSimCore
             }
             */
             
-            System.out.println("[ALLOC POLICY] Updated load : last " +  accTotalLoad_.getLast() + " current " + load + " at node " + this.nodeid);
+            //System.out.println("[ALLOC POLICY] Updated load : last " +  accTotalLoad_.getLast() + " current " + load + " at node " + this.nodeid);
              
             //if (is_local == false)
             {

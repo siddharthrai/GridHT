@@ -118,9 +118,12 @@ public class ClockPulseGenerator extends GridSimCore
     public void setWaitTime(int nodeid, int clock_wait)
     {
       //System.out.println("Waittime for " + nodeid + " set to " + clock_wait);
+      if (wait_time[nodeid] > 0)
+        wait_time[nodeid] += 1;
+      else
+        wait_time[nodeid] = clock_wait;
       
-      wait_time[nodeid] += clock_wait;
-      wait_time[nodeid] = wait_time[nodeid] % 128;
+      wait_time[nodeid] = wait_time[nodeid] % 32;
       return;
     }
 }

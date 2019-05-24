@@ -17,6 +17,7 @@ public class GridMonitorResource extends GridSimCore {
 
   int nodeid;
   int role;
+  int nodes;
   double currentload;
   byte hashkey[];
   byte indexkey[];
@@ -143,7 +144,7 @@ public class GridMonitorResource extends GridSimCore {
    * entity as required by sim_entity param gridadminid_:id of administrator
    * node
    */
-  public GridMonitorResource(String name, int gridmonitoradminid_, RandomAccessFile util_, ArrayList clocked_nodes, boolean with_gridlet_, boolean with_grupd_) throws Exception {
+  public GridMonitorResource(String name, int gridmonitoradminid_, RandomAccessFile util_, ArrayList clocked_nodes, int nodes_, boolean with_gridlet_, boolean with_grupd_) throws Exception {
     super(name);
     Random rand = new Random();
 
@@ -158,6 +159,8 @@ public class GridMonitorResource extends GridSimCore {
     hashcode = new HashCode();
     
     clocked_nodes.add(nodeid);
+    
+    nodes = nodes_ * 2 + 1;
     
     //System.out.println("With gridlet set to " + with_gridlet + " for resource " + this.nodeid);
     
@@ -340,12 +343,12 @@ public class GridMonitorResource extends GridSimCore {
         // this.getNextEvent(ev);
         //src=(Integer)(((GridMonitorIO)ev.get_data()).getdata());
         //this.send(src,node_to_node_latency,GridMonitorTags.INDEX,new GridMonitorIO(this.nodeid,src,(Object)this.indexkey));
-        System.out.println("Other resources indexed the system");
+        //System.out.println("Other resources indexed the system");
         
         this.send(gridmonitoradminid, node_to_node_latency, GridMonitorTags.JOIN_COMPLETE, new GridMonitorIO(this.nodeid, this.gridmonitoradminid, null, false));
       }
 
-      System.out.println("Entity " + this.name + " joined at " + Sim_system.clock());
+      //System.out.println("Entity " + this.name + " joined at " + Sim_system.clock());
 
       this.send(this.gridmonitoradminid, node_to_node_latency, GridMonitorTags.GET_A_FEEDBACK_NODE, new GridMonitorIO(this.nodeid, this.gridmonitoradminid, null, false));
       this.send(this.gridmonitoradminid, node_to_node_latency, GridMonitorTags.GET_A_INDEX_NODE, new GridMonitorIO(this.nodeid, this.gridmonitoradminid, null, false));
@@ -423,56 +426,59 @@ public class GridMonitorResource extends GridSimCore {
         }
         */
         
-        if (ready == true || ready == false)
+        if (ready == true)
+        //if (ready == true)
         {
           //System.out.println("Going to poll for events with pending events " + pending_event_list.size());
+          
           int processed = 0;
-          while (processed < 128 && pending_event_list.size() > 0)
+          
+          while (processed < 256 && pending_event_list.size() > 0)
           //while (processed < 500 && pending_event_list.size() > 0)
           //while (pending_event_list.size() > 0)
           {
             if (pending_event_list.size() > 0)
             {
-              ev  = (Sim_event)pending_event_list.remove(0);
-              src = (Integer)(((GridMonitorIO)ev.get_data()).getdata());
-                
-              if (ready == true || (ready == false && src != 129))
-              {
-                System.out.println("[PROCESSING] Processing msg " + ev.get_tag() + " at node " + this.nodeid);
-                waiting = false;
+              ev = (Sim_event)pending_event_list.remove(0);
+      
+              src = ((GridMonitorIO) ev.get_data()).getsrc();
+              
+              //System.out.println("[PROCESSING] Processing msg " + ev.get_tag() + " at node " + this.nodeid);
+              waiting = false;
             
-                processEvent(ev);
+              processEvent(ev);
               
               //if (ready == true)
+              if (ready == true || (ready == false && src != this.nodes))
+              {
+                if (ev.get_tag() == GridMonitorTags.INDEX)
                 {
-                  if (ev.get_tag() == GridMonitorTags.INDEX)
-                  {
-                    clockpulsegenerator.setWaitTime(nodeid, 5);
+                  clockpulsegenerator.setWaitTime(nodeid, 2);
                   
-                    System.out.println("[RESOURCE WAIT]Setting wait time 15 at node " + this.nodeid);
+                  //System.out.println("[RESOURCE WAIT]Setting wait time 15 at node " + this.nodeid);
                   
-                    //break;
-                  }
-                  else
-                  {
-                    System.out.println("[RESOURCE PROCESS]Setting wait time 3 at node " + this.nodeid);
-                    clockpulsegenerator.setWaitTime(nodeid, 0);
-                  }
+                  //break;
                 }
-                
-                //System.out.println("Processed " + ev.get_tag() + " at node " + this.nodeid);
-            
-                ready = false;
-            
-                ev = null;
-              
-                processed = processed + 1;
-              }
+                else
+                {
+                  //System.out.println("[RESOURCE PROCESS]Setting wait time 3 at node " + this.nodeid);
+                  clockpulsegenerator.setWaitTime(nodeid, 0);
+                }
+              }              
               else
               {
-                System.out.println("Received event from " + src);
-                //pending_event_list.add(0, ev);
+                pending_event_list.add(ev);
+                //System.out.println("Request from " + this.nodes);
+                break;
               }
+              
+              //System.out.println("Processed " + ev.get_tag() + " at node " + this.nodeid);
+            
+              ready = false;
+            
+              ev = null;
+              
+              processed = processed + 1;
             }
           }
         }
@@ -497,6 +503,9 @@ public class GridMonitorResource extends GridSimCore {
       //updaterequestcount.close();
 
       //System.out.println("Finished at " + Sim_system.clock() + " index size at " + this.nodeid + " is :" + this.dht.index.size() + "\n-------------------");
+      
+      policy_.setEndSimulation();
+      
       i = dht.index.iterator();
 
       if (this.nodeid < 13) 
@@ -1164,7 +1173,7 @@ public class GridMonitorResource extends GridSimCore {
           indexentry = (IndexEntry) update.get(0);
           indexentry.getHashkey(hashkey);
 
-          System.out.println("received index node " + ev.get_tag() + " " + src);
+          //System.out.println("received index node " + ev.get_tag() + " " + src);
           this.send(src, node_to_node_latency, GridMonitorTags.FIND_SUCCESSOR, new GridMonitorIO(this.nodeid, src, hashkey, false));
 
           hashkey = null;
@@ -1331,17 +1340,20 @@ public class GridMonitorResource extends GridSimCore {
         count++;
         
         this.sim_get_next(ev_);
-       
+       /*
         if (ev_.get_tag() == GridMonitorTags.INDEX)
         {
           System.out.println("RESOURCE INDEX");
         }
-        
+        */
+       
         //this.sim_pause(1.0);
+        /*
         if (ev_.get_tag() == GridMonitorTags.A_INDEX_NODE || ev_.get_tag() == GridMonitorTags.A_FEEDBACK_NODE)
         {
           System.out.println("Message arrived with tag " + ev_.get_tag() + " from " + ev_.get_src());
         }
+        */
         
         //if (ev_.get_tag() == GridMonitorTags.CLOCK_PULSE && clockpulsegenerator.isRunning() == true) {
         if (ev_.get_tag() == GridMonitorTags.CLOCK_PULSE) 
@@ -1393,6 +1405,8 @@ public class GridMonitorResource extends GridSimCore {
           finish = true;
         }
       }
+      
+      // Stop AllocPolicy
       
       if (ev_ != null)
       {

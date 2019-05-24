@@ -232,7 +232,7 @@ public class Example1 {
             
             for (i = 0; i < nodes; i++)
             {
-                res[i] = new GridMonitorResource("res" + i, gm.getAdminId(), null, clocked_nodes, with_gridlet, with_grupd);
+                res[i] = new GridMonitorResource("res" + i, gm.getAdminId(), null, clocked_nodes, nodes, with_gridlet, with_grupd);
                 System.out.println("Finished instantiating res " + i);
                 //clocked_nodes.add(res[i].getNodeId());
             }
